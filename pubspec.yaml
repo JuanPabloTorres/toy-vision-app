@@ -1,0 +1,24 @@
+name: toyvision_realtime
+description: ToyVision Real-Time — mobile-first AI app that detects, tracks, and counts toys live.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  # Camera plugin is declared for Phase 2 (real preview + frame stream).
+  # Phase 1 runs mock-first with a preview placeholder and does not call it yet.
+  camera: ^0.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
