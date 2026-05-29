@@ -39,3 +39,35 @@ Owned by the QA Validation Agent.
   normalized to the full frame and the preview is scaled with `BoxFit.cover`).
   Precise alignment will be revisited in Phase 2b when real detections arrive.
 - Record device, OS version, and any anomalies here when running the checklist.
+
+## Phase 2a.2 smoke-test attempt — 2026-05-29
+
+Attempted an Android emulator runtime smoke test. **Could not boot any emulator:**
+
+- `system-images/` in the Android SDK is empty — no system image is installed,
+  so every AVD fails with `Cannot find AVD system path`.
+- `flutter doctor`: Android cmdline-tools missing and licenses unaccepted.
+- No physical Android/iOS device attached (`flutter devices` shows only Windows,
+  Chrome, Edge).
+
+Booting would require installing cmdline-tools + an ~1GB system image + license
+acceptance (a heavy SDK mutation), so it was not performed in this pass.
+
+### Automatically verified (no device needed)
+
+| Check | Result |
+|-------|--------|
+| `flutter pub get` | ✅ ok |
+| `flutter analyze` | ✅ clean |
+| `flutter test` (46) | ✅ all pass |
+| `flutter build apk --debug` | ✅ builds; native camera plugin compiles |
+| Merged Android manifest | ✅ `CAMERA` only — no `RECORD_AUDIO`, no storage |
+
+### Pending human visual verification (require a booted device)
+
+Items 1–13 of the checklist above: permission prompt, deny state, preview render,
+overlay alignment, moving mock detections, stable counter, person ignored,
+pause/resume freeze/continue, reset clears UI, dispose-on-leave, reopen.
+
+**Status: runtime smoke test passed structurally; live camera QA pending a
+device/emulator with an installed system image.**
