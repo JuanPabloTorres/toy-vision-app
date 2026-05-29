@@ -71,3 +71,11 @@ pause/resume freeze/continue, reset clears UI, dispose-on-leave, reopen.
 
 **Status: runtime smoke test passed structurally; live camera QA pending a
 device/emulator with an installed system image.**
+
+### Overlay alignment note (Phase 2c.2)
+
+The overlay currently draws normalized boxes directly over a `BoxFit.cover`
+preview, which crops one axis — so boxes will not be pixel-aligned with the
+preview until the geometry mappers (`lib/detection/geometry/`) are wired and
+verified on a device. Track this alongside the live camera QA above; details in
+[phase-2c-tflite.md](phase-2c-tflite.md).

@@ -70,6 +70,16 @@ The native inference runtime sits behind the `ToyModelRuntime` seam; only
   orientation. Rotation to upright is **not** applied yet — it depends on device
   sensor orientation and is a Phase 2c.2 / on-device concern. We do not guess
   transforms without device QA.
+- **Geometry foundations (Phase 2c.2):** pure, tested helpers in
+  `lib/detection/geometry/` prepare orientation + box mapping but are **not wired
+  into production**. `FrameOrientation` (sensor+device° → clockwise quarterTurns,
+  default none = no rotation); `RotationTransform.rotateNormalized` (0/90/180/270)
+  with `clampNormalized`; `BoundingBoxMapper` (normalized ↔ pixel, non-positive dims
+  throw); `PreviewCoordinateMapper` (`BoxFit.cover` scale/offset + normalized →
+  preview-pixel). To display correctly the pipeline must eventually (1) rotate by
+  `quarterTurns`, then (2) map into the cover-cropped preview. **`BoxFit.cover`
+  crops one axis**, so a mapped box can exceed the viewport (overlay clips);
+  exact alignment + correct rotation **must be validated on a physical device**.
 - **Output (SSD-style, indices configurable in `ToyModelConfig`):** boxes
   `[1, N, 4]` as `[ymin, xmin, ymax, xmax]`, classes `[1, N]`, scores `[1, N]`,
   `N = maxDetections`.

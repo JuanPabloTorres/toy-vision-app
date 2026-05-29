@@ -36,6 +36,21 @@ Frames are converted to the model input by `CameraImagePreprocessor` via the pur
 orientation; rotation to upright is deferred to on-device validation (2c.2). A
 model trained on upright images may need that rotation before it performs well.
 
+## Box coordinate mapping (Phase 2c.2)
+
+Model output boxes are normalized `[ymin, xmin, ymax, xmax]`; the adapter yields
+top-left `x,y,w,h` (`BoundingBox`). Pure, tested helpers in
+`lib/detection/geometry/` prepare display mapping (**not yet wired**):
+
+1. `FrameOrientation.quarterTurns` + `RotationTransform.rotateNormalized` — rotate
+   boxes to upright (default: no rotation until device QA).
+2. `PreviewCoordinateMapper.mapNormalizedBoxToPreview` — map into the
+   `BoxFit.cover` preview, accounting for scale and the cropped (overflowing) axis.
+
+Because the preview uses `BoxFit.cover`, a mapped box may extend past the viewport
+(the overlay clips). Correct rotation and alignment must be verified on a physical
+device before the overlay is trusted.
+
 ## Class order
 
 The model's class indices must map to `ToyModelConfig.labels`, in order. Every

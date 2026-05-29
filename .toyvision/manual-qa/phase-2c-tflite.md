@@ -61,3 +61,17 @@ Full-color conversion is implemented and unit-tested
 | B | BGRA8888 conversion correct on a real iOS camera | Pending |
 | C | Orientation correct (or rotation added in 2c.2) | Pending |
 | D | Preprocessing keeps the loop responsive at target FPS | Pending |
+
+## Geometry / overlay alignment (Phase 2c.2)
+
+Orientation and coordinate-mapping helpers exist in `lib/detection/geometry/` and
+are unit-tested, but are **not wired into production** — the overlay still draws
+normalized boxes directly over a `BoxFit.cover` preview, and rotation defaults to
+none. Real alignment must be confirmed on a device:
+
+| # | Check | Status |
+|---|-------|--------|
+| E | `FrameOrientation.quarterTurns` matches the real device/sensor | Pending |
+| F | Rotated boxes line up with detected objects | Pending |
+| G | `PreviewCoordinateMapper` cover mapping aligns box to cropped preview | Pending |
+| H | Front-camera mirroring (if used) is correct | Pending |
