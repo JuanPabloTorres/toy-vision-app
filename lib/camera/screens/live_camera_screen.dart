@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,20 +18,56 @@ import '../models/camera_status.dart';
 import '../services/camera_controller_service.dart';
 
 /// The live detection screen. It selects the correct view for the camera
-/// status, then composes preview placeholder + overlay + panels + controls.
+/// status, renders the real camera preview when ready, and composes the overlay,
+/// panels, and controls on top.
 ///
-/// It renders prepared state only: no counting, IoU, or validity logic here.
-class LiveCameraScreen extends ConsumerWidget {
+/// It renders prepared state only: no throttling, detection, counting, IoU,
+/// validation, tracking, or detector selection happens here. App lifecycle
+/// changes are forwarded to the controller so the camera is released when
+/// backgrounded.
+class LiveCameraScreen extends ConsumerStatefulWidget {
   const LiveCameraScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LiveCameraScreen> createState() => _LiveCameraScreenState();
+}
+
+class _LiveCameraScreenState extends ConsumerState<LiveCameraScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    ref
+        .read(liveDetectionControllerProvider.notifier)
+        .handleAppLifecycle(lifecycle);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cameraStatus = ref.watch(cameraStatusProvider);
 
     return Scaffold(
       body: switch (cameraStatus) {
-        CameraStatus.initializing => const ModelLoadingView(),
+        CameraStatus.initial ||
+        CameraStatus.initializing =>
+          const ModelLoadingView(message: 'Starting camera…'),
         CameraStatus.permissionDenied => CameraPermissionView(
+            onRequestPermission: () =>
+                ref.read(cameraStatusProvider.notifier).requestPermission(),
+          ),
+        CameraStatus.permissionPermanentlyDenied => CameraPermissionView(
+            permanentlyDenied: true,
             onRequestPermission: () =>
                 ref.read(cameraStatusProvider.notifier).requestPermission(),
           ),
@@ -38,7 +75,11 @@ class LiveCameraScreen extends ConsumerWidget {
             isError: true,
             message: 'Camera unavailable',
           ),
-        CameraStatus.ready => const _LiveDetectionView(),
+        CameraStatus.disposed => const ModelLoadingView(),
+        CameraStatus.ready ||
+        CameraStatus.streaming ||
+        CameraStatus.paused =>
+          const _LiveDetectionView(),
       },
     );
   }
@@ -51,19 +92,13 @@ class _LiveDetectionView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(liveDetectionControllerProvider);
     final controller = ref.read(liveDetectionControllerProvider.notifier);
-
-    if (state.status == ModelStatus.error) {
-      return const ModelLoadingView(isError: true);
-    }
-    if (state.status == ModelStatus.initializing) {
-      return const ModelLoadingView();
-    }
+    final cameraController = ref.read(cameraStatusProvider.notifier).controller;
 
     return SafeArea(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const _PreviewPlaceholder(),
+          _CameraPreviewCover(controller: cameraController),
           // Detection overlay (bounding boxes for tracked toys).
           Positioned.fill(
             child: CustomPaint(
@@ -79,18 +114,28 @@ class _LiveDetectionView extends ConsumerWidget {
   }
 }
 
-/// Placeholder shown until the real camera preview is wired in Phase 2.
-class _PreviewPlaceholder extends StatelessWidget {
-  const _PreviewPlaceholder();
+/// Renders the real camera preview, scaled to cover the screen. Falls back to a
+/// neutral background if the controller is momentarily unavailable.
+class _CameraPreviewCover extends StatelessWidget {
+  const _CameraPreviewCover({required this.controller});
+
+  final CameraController? controller;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      child: const Center(
-        child: Text(
-          'Camera preview (Phase 2)',
-          style: TextStyle(color: AppColors.onSurfaceMuted),
+    final c = controller;
+    final previewSize = c?.value.previewSize;
+    if (c == null || !c.value.isInitialized || previewSize == null) {
+      return const ColoredBox(color: Colors.black);
+    }
+    return ClipRect(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          // previewSize is reported in sensor (landscape) orientation.
+          width: previewSize.height,
+          height: previewSize.width,
+          child: CameraPreview(c),
         ),
       ),
     );
@@ -177,7 +222,7 @@ class _Controls extends StatelessWidget {
           ),
           const AppIconButton(
             icon: Icons.save_alt,
-            tooltip: 'Save summary (Phase 2)',
+            tooltip: 'Save summary (Phase 2b+)',
             emphasized: true,
             // Storage layer arrives in a later phase; summary-only save.
             onPressed: null,

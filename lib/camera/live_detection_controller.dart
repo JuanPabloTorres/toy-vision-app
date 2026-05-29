@@ -1,5 +1,5 @@
-import 'dart:async';
-
+import 'package:camera/camera.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../business/live_detection_state.dart';
@@ -10,6 +10,8 @@ import '../core/config/realtime_detection_config.dart';
 import '../detection/detectors/mock_toy_detector.dart';
 import '../detection/detectors/toy_detector.dart';
 import '../tracking/toy_tracking_engine.dart';
+import 'models/camera_status.dart';
+import 'services/camera_controller_service.dart';
 import 'services/frame_processing_service.dart';
 
 final realtimeConfigProvider = Provider<RealtimeDetectionConfig>(
@@ -20,7 +22,7 @@ final toyCategoryRegistryProvider = Provider<ToyCategoryRegistry>(
   (ref) => ToyCategoryRegistry.standard(),
 );
 
-/// Phase 1 uses the mock detector. Phase 2 swaps this single line for the
+/// Phase 1/2a use the mock detector. Phase 2b swaps this single line for the
 /// TFLite-backed detector (behind an adapter) — nothing else changes.
 final toyDetectorProvider = Provider<ToyDetector>((ref) => MockToyDetector());
 
@@ -39,7 +41,7 @@ final countingServiceProvider = Provider<ToyCountingService>(
 final frameProcessingServiceProvider = Provider<FrameProcessingService>(
   (ref) => FrameProcessingService(
     detector: ref.watch(toyDetectorProvider),
-    rules: ref.watch(toyDetectionRulesProvider),
+    config: ref.watch(realtimeConfigProvider),
   ),
 );
 
@@ -52,70 +54,104 @@ final liveDetectionControllerProvider =
 /// [LiveDetectionState] for the UI.
 ///
 /// This is the only place the pipeline is wired together
-/// (detect → validate → track → count → state). It contains no business math
-/// itself: validation, tracking, and counting all live in their own layers.
+/// (camera frame → throttle/skip → detect → validate → track → count → state).
+/// It owns no business math itself; validation, tracking, and counting live in
+/// their own layers, and frame access lives in the camera layer.
 class LiveDetectionController extends Notifier<LiveDetectionState> {
-  Timer? _timer;
-
   @override
   LiveDetectionState build() {
-    ref.onDispose(_disposeLoop);
-    Future.microtask(_start);
+    ref.listen<CameraStatus>(cameraStatusProvider, (_, next) {
+      if (next == CameraStatus.ready) _maybeStartStream();
+    });
+    Future.microtask(_init);
     return LiveDetectionState.initial();
   }
 
-  RealtimeDetectionConfig get _config => ref.read(realtimeConfigProvider);
   ToyDetector get _detector => ref.read(toyDetectorProvider);
   FrameProcessingService get _frames =>
       ref.read(frameProcessingServiceProvider);
+  ToyDetectionRules get _rules => ref.read(toyDetectionRulesProvider);
   ToyTrackingEngine get _engine => ref.read(trackingEngineProvider);
   ToyCountingService get _counting => ref.read(countingServiceProvider);
+  CameraControllerService get _camera =>
+      ref.read(cameraStatusProvider.notifier);
 
-  Future<void> _start() async {
+  Future<void> _init() async {
     try {
       await _detector.initialize();
       state = state.copyWith(status: ModelStatus.ready);
-      _timer = Timer.periodic(_config.frameInterval, (_) => _tick());
+      // Camera may already be ready before this controller was built.
+      if (ref.read(cameraStatusProvider) == CameraStatus.ready) {
+        await _maybeStartStream();
+      }
     } catch (_) {
       state = state.copyWith(status: ModelStatus.error);
     }
   }
 
-  Future<void> _tick() async {
+  Future<void> _maybeStartStream() async {
     if (state.isPaused) return;
-    final validated = await _frames.processFrame();
-    if (validated == null) return; // skipped: inference still running
+    await _camera.startStream(processIncomingFrame);
+  }
 
+  /// Handle one camera frame. Public for testing; in production it is the image
+  /// stream callback. Honors pause, throttle, and skip-if-busy before running
+  /// the validate → track → count pipeline.
+  @visibleForTesting
+  Future<void> processIncomingFrame(CameraImage? image) async {
+    if (state.isPaused) return;
+
+    final raw = await _frames.process(image);
+    if (raw == null) return; // throttled or skipped
+
+    final validated = _rules.validate(raw);
     final tracked = _engine.update(validated);
     final summary = _counting.update(tracked);
     final visible = tracked.where((t) => t.isVisible).toList(growable: false);
 
-    state = state.copyWith(visibleToys: visible, summary: summary);
-  }
-
-  void pause() => state = state.copyWith(isPaused: true);
-
-  void resume() => state = state.copyWith(isPaused: false);
-
-  void togglePause() =>
-      state = state.copyWith(isPaused: !state.isPaused);
-
-  /// Clear tracking and counts and restart the count from zero.
-  void reset() {
-    _engine.reset();
-    _counting.reset();
-    final detector = _detector;
-    if (detector is MockToyDetector) detector.resetFrames();
     state = state.copyWith(
-      visibleToys: const [],
-      summary: ToyCountSummary.empty,
-      isPaused: false,
+      status: ModelStatus.ready,
+      visibleToys: visible,
+      summary: summary,
     );
   }
 
-  void _disposeLoop() {
-    _timer?.cancel();
-    _timer = null;
-    _detector.dispose();
+  void pause() {
+    state = state.copyWith(isPaused: true);
+    _camera.pauseStream();
+  }
+
+  void resume() {
+    state = state.copyWith(isPaused: false);
+    _camera.resumeStream(processIncomingFrame);
+  }
+
+  void togglePause() => state.isPaused ? resume() : pause();
+
+  /// Clear tracking, counts, and throttle state and restart the count from zero.
+  /// Does not change the user's pause state.
+  void reset() {
+    _engine.reset();
+    _counting.reset();
+    _frames.reset();
+    state = state.copyWith(
+      visibleToys: const [],
+      summary: ToyCountSummary.empty,
+    );
+  }
+
+  /// React to app lifecycle changes: release the stream when backgrounded and
+  /// resume it on return (unless the user paused). The camera service keeps the
+  /// controller initialized so the preview survives brief backgrounding.
+  void handleAppLifecycle(AppLifecycleState lifecycle) {
+    switch (lifecycle) {
+      case AppLifecycleState.resumed:
+        if (!state.isPaused) _camera.resumeStream(processIncomingFrame);
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _camera.pauseStream();
+    }
   }
 }

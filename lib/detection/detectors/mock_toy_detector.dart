@@ -1,18 +1,20 @@
 import 'dart:math' as math;
 
 import '../models/bounding_box.dart';
+import '../models/detection_frame.dart';
 import '../models/raw_detection.dart';
 import 'toy_detector.dart';
 
-/// Deterministic mock detector used for the mock-first MVP phase.
+/// Deterministic mock detector used for the mock-first phases.
 ///
 /// Emits a small set of fake, smoothly moving detections so the camera shell,
-/// overlay, tracking, and counting can be exercised and tested without a real
-/// model. Motion is driven by an internal frame counter (no randomness), so the
-/// sequence is reproducible for scenario tests.
+/// overlay, tracking, and counting can be exercised without a real model. Motion
+/// is driven by [DetectionFrame.frameIndex] (no randomness), so the sequence is
+/// reproducible. The real camera image, when present, is intentionally ignored
+/// in this phase.
 ///
-/// The set intentionally includes a `person` detection (which the business
-/// layer must ignore) and a low-confidence toy (below threshold) to prove the
+/// The set intentionally includes a `person` detection (which the business layer
+/// must ignore) and a low-confidence toy (below threshold) to prove the
 /// validation gate works end to end.
 class MockToyDetector implements ToyDetector {
   MockToyDetector({this.emitPerson = true, this.emitLowConfidenceToy = true});
@@ -23,17 +25,12 @@ class MockToyDetector implements ToyDetector {
   /// Whether to emit a toy below its confidence threshold (must be rejected).
   final bool emitLowConfidenceToy;
 
-  int _frame = 0;
-
   @override
   Future<void> initialize() async {}
 
   @override
-  Future<List<RawDetection>> detect() async {
-    final detections = detectAt(_frame);
-    _frame++;
-    return detections;
-  }
+  Future<List<RawDetection>> detect(DetectionFrame frame) async =>
+      detectAt(frame.frameIndex);
 
   /// Pure, frame-indexed detection generator. Exposed for deterministic tests.
   List<RawDetection> detectAt(int frame) {
@@ -84,9 +81,6 @@ class MockToyDetector implements ToyDetector {
 
     return detections;
   }
-
-  /// Reset the internal frame counter (used by the controller's reset action).
-  void resetFrames() => _frame = 0;
 
   @override
   void dispose() {}
