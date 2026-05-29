@@ -1,22 +1,49 @@
 # Toy detection models
 
-Place the TFLite model here as `toy_detector.tflite` (the path in
-`ToyModelConfig.defaults`).
+Place the TFLite model here as **`toy_detector.tflite`** (the path in
+`ToyModelConfig.defaults`). No model file is committed; until one exists the app
+runs on the mock detector.
 
-## Requirements before a model is added
+## Expected model contract
 
-- **Class-label order must match `ToyModelConfig.labels`**, which in turn must
-  stay in sync with `ToyCategoryRegistry`. `ModelMetadataValidator` enforces that
-  every model label is registry-known.
-- The model must be a small/nano on-device detector exported to TensorFlow Lite.
-- Output is expected in the common SSD layout consumed by
-  `TfliteToyDetectorAdapter`: boxes `[ymin, xmin, ymax, xmax]` (normalized),
-  per-detection scores, and class indices.
+| Property | Expectation |
+|----------|-------------|
+| File name | `toy_detector.tflite` |
+| Input | `[1, 320, 320, 3]` float (configurable via `ToyModelConfig.inputWidth/Height`) |
+| Input normalization | `(pixel - inputMean) / inputStd` → defaults `0 / 255` (0..1) |
+| Output: boxes | tensor index `0`, shape `[1, N, 4]`, `[ymin, xmin, ymax, xmax]` normalized |
+| Output: classes | tensor index `1`, shape `[1, N]` (float indices) |
+| Output: scores | tensor index `2`, shape `[1, N]` |
+| `N` | `ToyModelConfig.maxDetections` (default 25) |
+
+If a chosen model differs (different indices, box format, or output count),
+change only `ToyModelConfig` and `TfliteTensorOutputParser` /
+`TfliteToyDetectorAdapter` — never the business layer.
+
+## Class order
+
+The model's class indices must map to `ToyModelConfig.labels`, in order. Every
+label must exist in `ToyCategoryRegistry`; `ModelMetadataValidator` rejects the
+config otherwise. Keep the class list and the registry in sync in the same change.
 
 ## Privacy
 
 The model is a detector only. It must not identify people or perform face
-recognition, and frames are never saved or uploaded.
+recognition. Frames are read transiently to build the input tensor and are never
+saved or uploaded.
 
-No model file is committed yet — until one is present (and the inference runtime
-is wired), the app runs on the mock detector.
+## How fallback behaves
+
+`TfliteToyDetector` validates the config, loads the asset, then hands bytes to
+`TfliteToyModelRuntime`. If the model asset is missing, the interpreter fails, or
+the tensor shapes don't match, it throws `ModelUnavailableException` /
+`TfliteRuntimeException` and `FallbackToyDetector` switches to `MockToyDetector`.
+At inference time, preprocessing/runtime errors drop the single frame (empty
+output) rather than crashing the live loop.
+
+## Why the mock is still the default
+
+`toyDetectorModeProvider` defaults to `ToyDetectorMode.mock`. TFLite is opt-in via
+`ToyDetectorMode.tfliteWithFallback` and only becomes the active detector once a
+valid model is present and its shapes validate. See
+`.toyvision/manual-qa/phase-2c-tflite.md` for how to enable it.

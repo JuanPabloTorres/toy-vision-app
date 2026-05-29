@@ -11,9 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.5.1
-  # Camera plugin is declared for Phase 2 (real preview + frame stream).
-  # Phase 1 runs mock-first with a preview placeholder and does not call it yet.
   camera: ^0.11.0
+  # On-device inference runtime. Wired behind the ToyModelRuntime seam; the app
+  # still runs on the mock detector until a model file + runtime are available.
+  tflite_flutter: ^0.11.0
 
 dev_dependencies:
   flutter_test:

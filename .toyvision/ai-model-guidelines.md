@@ -53,4 +53,26 @@ the real detector.
 - Models are evaluated before promotion; accuracy/latency are recorded.
 - Model selection and dataset rules are owned by the AI Vision Model Agent.
 
+## TFLite runtime (Phase 2c.0 foundation)
+
+The native inference runtime sits behind the `ToyModelRuntime` seam; only
+`tflite_interpreter_factory.dart` imports `tflite_flutter`.
+
+- **Model file:** `assets/models/toy_detector.tflite` (none committed yet).
+- **Input:** `[1, inputHeight, inputWidth, 3]` float; normalized
+  `(pixel - inputMean) / inputStd` (defaults `0 / 255`).
+- **Output (SSD-style, indices configurable in `ToyModelConfig`):** boxes
+  `[1, N, 4]` as `[ymin, xmin, ymax, xmax]`, classes `[1, N]`, scores `[1, N]`,
+  `N = maxDetections`.
+- **Class order** must map to `ToyModelConfig.labels`, all registry-known
+  (enforced by `ModelMetadataValidator`).
+- **Fallback:** missing/invalid model or mismatched shapes → fall back to
+  `MockToyDetector`; per-frame preprocessing/inference errors drop the frame
+  rather than crash the loop.
+- **Default:** `toyDetectorModeProvider = mock`. TFLite is opt-in via
+  `ToyDetectorMode.tfliteWithFallback` and only active once a valid model loads
+  and its shapes validate.
+- The model still makes **no** business decision (toy-ness, confidence
+  acceptability, ignore rules, count) — those remain in the business layer.
+
 Guardrail: [skills/preserve-ai-model-discipline.md](skills/preserve-ai-model-discipline.md).

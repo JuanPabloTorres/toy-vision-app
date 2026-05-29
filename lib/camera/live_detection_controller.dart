@@ -10,6 +10,7 @@ import '../core/config/realtime_detection_config.dart';
 import '../detection/detectors/fallback_toy_detector.dart';
 import '../detection/detectors/mock_toy_detector.dart';
 import '../detection/detectors/tflite/tflite_toy_detector.dart';
+import '../detection/detectors/tflite/tflite_toy_model_runtime.dart';
 import '../detection/detectors/toy_detector.dart';
 import '../detection/models/toy_model_config.dart';
 import '../tracking/toy_tracking_engine.dart';
@@ -52,6 +53,7 @@ final toyDetectorProvider = Provider<ToyDetector>((ref) {
         primary: TfliteToyDetector(
           config: ref.watch(toyModelConfigProvider),
           registry: ref.watch(toyCategoryRegistryProvider),
+          runtime: TfliteToyModelRuntime(),
         ),
         fallback: MockToyDetector(),
       );

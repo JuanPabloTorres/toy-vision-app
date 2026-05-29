@@ -16,6 +16,14 @@ class ToyModelConfig {
     required this.inputWidth,
     required this.inputHeight,
     this.minimumRawScore = 0.001,
+    this.maxDetections = 25,
+    this.inputMean = 0.0,
+    this.inputStd = 255.0,
+    this.boxesTensorIndex = 0,
+    this.classesTensorIndex = 1,
+    this.scoresTensorIndex = 2,
+    this.modelName,
+    this.modelVersion,
   });
 
   /// Bundled asset path of the `.tflite` model file.
@@ -31,6 +39,25 @@ class ToyModelConfig {
   /// This is NOT the business confidence gate (that is per-category in the
   /// registry); it just prevents flooding the pipeline with empty boxes.
   final double minimumRawScore;
+
+  /// Maximum detections the model emits per frame (output tensor length N).
+  final int maxDetections;
+
+  /// Input normalization: normalized = (pixel - [inputMean]) / [inputStd].
+  /// Defaults give 0..1 scaling.
+  final double inputMean;
+  final double inputStd;
+
+  // Expected output tensor layout (SSD-style). Boxes are `[ymin, xmin, ymax,
+  // xmax]` normalized. If a chosen model differs, only these indices and the
+  // adapter/parser change — never the business layer.
+  final int boxesTensorIndex;
+  final int classesTensorIndex;
+  final int scoresTensorIndex;
+
+  /// Optional model identity for traceability/versioning.
+  final String? modelName;
+  final String? modelVersion;
 
   /// Default foundation config. The model file is intentionally absent in this
   /// phase, so loading it fails gracefully and the app falls back to the mock.
