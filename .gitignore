@@ -21,3 +21,8 @@ Thumbs.db
 
 # Coverage / test
 coverage/
+
+# Tooling (local, not committed)
+.codegraph/
+.swarm/
+.mcp-cache/
