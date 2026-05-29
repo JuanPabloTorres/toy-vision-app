@@ -79,3 +79,18 @@ preview, which crops one axis — so boxes will not be pixel-aligned with the
 preview until the geometry mappers (`lib/detection/geometry/`) are wired and
 verified on a device. Track this alongside the live camera QA above; details in
 [phase-2c-tflite.md](phase-2c-tflite.md).
+
+## Phase 2d device-QA attempt — 2026-05-29 (BLOCKED)
+
+Attempted the physical-device QA gate. **Blocked: no physical Android device
+available** and no emulator with an installed system image.
+
+- `flutter devices` → only Windows, Chrome, Edge (no Android target).
+- `adb devices` → empty list.
+- No `.tflite` model and no code changes since 2c.2 (`38f2ee2`); automated gates
+  remain green (analyze clean, 107 tests, debug APK builds).
+
+**All checklist items 1–33 remain: Pending human visual verification.** To
+proceed, attach a physical Android phone (USB debugging) or install an Android
+emulator system image. Model dataset/training (Phase 2e) should not start until
+this gate passes.
