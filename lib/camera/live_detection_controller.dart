@@ -7,8 +7,11 @@ import '../business/toy_category_registry.dart';
 import '../business/toy_counting_service.dart';
 import '../business/toy_detection_rules.dart';
 import '../core/config/realtime_detection_config.dart';
+import '../detection/detectors/fallback_toy_detector.dart';
 import '../detection/detectors/mock_toy_detector.dart';
+import '../detection/detectors/tflite/tflite_toy_detector.dart';
 import '../detection/detectors/toy_detector.dart';
+import '../detection/models/toy_model_config.dart';
 import '../tracking/toy_tracking_engine.dart';
 import 'models/camera_status.dart';
 import 'services/camera_controller_service.dart';
@@ -22,9 +25,38 @@ final toyCategoryRegistryProvider = Provider<ToyCategoryRegistry>(
   (ref) => ToyCategoryRegistry.standard(),
 );
 
-/// Phase 1/2a use the mock detector. Phase 2b swaps this single line for the
-/// TFLite-backed detector (behind an adapter) — nothing else changes.
-final toyDetectorProvider = Provider<ToyDetector>((ref) => MockToyDetector());
+/// Which detector the live pipeline uses. Defaults to [ToyDetectorMode.mock];
+/// the TFLite path is opt-in and only becomes active once it passes its config
+/// and adapter checks — and even then it falls back to the mock if the model is
+/// unavailable.
+enum ToyDetectorMode { mock, tfliteWithFallback }
+
+final toyDetectorModeProvider =
+    Provider<ToyDetectorMode>((ref) => ToyDetectorMode.mock);
+
+final toyModelConfigProvider =
+    Provider<ToyModelConfig>((ref) => ToyModelConfig.defaults);
+
+/// Builds the active detector for the selected mode.
+///
+/// - [ToyDetectorMode.mock]: the proven [MockToyDetector] (default).
+/// - [ToyDetectorMode.tfliteWithFallback]: attempt [TfliteToyDetector], falling
+///   back to the mock if the model/runtime is unavailable. No native TFLite
+///   runtime is wired in this phase, so this currently resolves to the mock.
+final toyDetectorProvider = Provider<ToyDetector>((ref) {
+  switch (ref.watch(toyDetectorModeProvider)) {
+    case ToyDetectorMode.mock:
+      return MockToyDetector();
+    case ToyDetectorMode.tfliteWithFallback:
+      return FallbackToyDetector(
+        primary: TfliteToyDetector(
+          config: ref.watch(toyModelConfigProvider),
+          registry: ref.watch(toyCategoryRegistryProvider),
+        ),
+        fallback: MockToyDetector(),
+      );
+  }
+});
 
 final toyDetectionRulesProvider = Provider<ToyDetectionRules>(
   (ref) => ToyDetectionRules(ref.watch(toyCategoryRegistryProvider)),

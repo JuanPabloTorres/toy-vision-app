@@ -22,3 +22,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # The TFLite model is dropped in here (see assets/models/README.md). The model
+  # file itself is not committed yet; until it exists the app uses the mock.
+  assets:
+    - assets/models/
