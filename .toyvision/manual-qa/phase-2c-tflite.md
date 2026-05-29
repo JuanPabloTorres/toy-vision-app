@@ -37,6 +37,27 @@ on-device validation with a real model.
 
 ## Status
 
-Phase 2c.0 is structurally complete (analyze clean, all tests pass, debug APK
-builds). Real model inference is **not** enabled — it requires a trained model,
-the full-color YUV→RGB preprocessing path (2c.1), and on-device validation.
+Phase 2c.1 is structurally complete (analyze clean, all tests pass, debug APK
+builds). Real model inference is **not** enabled — it still requires a trained
+model, on-device orientation validation, and threshold tuning.
+
+## Camera preprocessing (Phase 2c.1)
+
+Full-color conversion is implemented and unit-tested
+(`image_format_converter.dart`):
+
+- **Android YUV420** → RGB (BT.601, stride-aware, planar/semi-planar).
+- **iOS BGRA8888** → RGB (channel reorder).
+- Unsupported formats / short planes fail safely → frame dropped (non-fatal).
+- **Rotation/orientation is NOT applied** — the buffer is in sensor orientation.
+  Must be validated on device (Phase 2c.2); a model trained on upright images may
+  need rotation first.
+
+### On-device items still pending human verification
+
+| # | Check | Status |
+|---|-------|--------|
+| A | YUV420 conversion correct on a real Android camera | Pending |
+| B | BGRA8888 conversion correct on a real iOS camera | Pending |
+| C | Orientation correct (or rotation added in 2c.2) | Pending |
+| D | Preprocessing keeps the loop responsive at target FPS | Pending |

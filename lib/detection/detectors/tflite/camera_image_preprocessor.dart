@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 
 import '../../models/detection_frame.dart';
 import '../../models/toy_model_config.dart';
+import 'image_format_converter.dart';
 import 'tflite_runtime_exception.dart';
 
 /// A model input tensor: a flat, normalized float buffer plus its dimensions.
@@ -27,23 +28,50 @@ class ModelInput {
 
 /// Prepares a [DetectionFrame]'s camera image into a normalized model input.
 ///
-/// Pipeline: CameraImage (YUV420) → RGB buffer → resize to the model's input
-/// size → normalize → [ModelInput]. The pixel resize/normalize step
-/// ([buildInputFromRgb]) is pure and unit-tested. The CameraImage→RGB extraction
-/// needs a real frame and is a documented foundation (see below).
+/// Pipeline: CameraImage → [RawCameraFrame] → [ImageFormatConverter] (full-color
+/// YUV420 / BGRA8888 → RGB) → resize to the model's input size → normalize →
+/// [ModelInput]. The conversion and resize/normalize steps are pure and
+/// unit-tested with synthetic data; only the thin `CameraImage` → `RawCameraFrame`
+/// mapping needs a real frame.
+///
+/// Orientation note: this produces a buffer in the camera's native (sensor)
+/// orientation. Rotating to display/upright orientation depends on device sensor
+/// orientation and is deferred to on-device validation (Phase 2c.2) to avoid
+/// guessing transforms without a real device.
 ///
 /// Belongs to the detection layer only — never UI or business code. It saves and
 /// uploads nothing; the image is read transiently to build the tensor.
 class CameraImagePreprocessor {
-  const CameraImagePreprocessor();
+  const CameraImagePreprocessor({
+    ImageFormatConverter converter = const ImageFormatConverter(),
+  }) : _converter = converter;
+
+  final ImageFormatConverter _converter;
 
   ModelInput preprocess(DetectionFrame frame, ToyModelConfig config) {
     final image = frame.cameraImage;
     if (image == null) {
       throw const TfliteRuntimeException('No camera image to preprocess.');
     }
-    final rgb = _extractRgb(image);
+    final rgb = _converter.convert(_toRawFrame(image));
     return buildInputFromRgb(rgb.bytes, rgb.width, rgb.height, config);
+  }
+
+  /// Thin mapping from the plugin's `CameraImage` to the pure [RawCameraFrame].
+  RawCameraFrame _toRawFrame(CameraImage image) {
+    return RawCameraFrame(
+      format: image.format.group,
+      width: image.width,
+      height: image.height,
+      planes: [
+        for (final p in image.planes)
+          RawImagePlane(
+            bytes: p.bytes,
+            bytesPerRow: p.bytesPerRow,
+            bytesPerPixel: p.bytesPerPixel,
+          ),
+      ],
+    );
   }
 
   /// Pure nearest-neighbor resize + normalization. Returns a `[1, h, w, 3]`
@@ -73,41 +101,4 @@ class CameraImagePreprocessor {
     }
     return ModelInput(data: out, width: w, height: h);
   }
-
-  /// Foundation extraction: supports YUV420 by mapping the luminance (Y) plane
-  /// to grayscale RGB. Full-color chroma conversion lands in Phase 2c.1; this is
-  /// crash-safe and produces a correctly-shaped buffer. Unsupported formats fail
-  /// safely with a [TfliteRuntimeException].
-  _RgbImage _extractRgb(CameraImage image) {
-    if (image.format.group != ImageFormatGroup.yuv420) {
-      throw TfliteRuntimeException(
-        'Unsupported camera image format: ${image.format.group}',
-      );
-    }
-    final w = image.width;
-    final h = image.height;
-    final yPlane = image.planes.first;
-    final rowStride = yPlane.bytesPerRow;
-    final bytes = yPlane.bytes;
-    final rgb = Uint8List(w * h * 3);
-
-    var o = 0;
-    for (var y = 0; y < h; y++) {
-      final row = y * rowStride;
-      for (var x = 0; x < w; x++) {
-        final lum = bytes[row + x];
-        rgb[o++] = lum;
-        rgb[o++] = lum;
-        rgb[o++] = lum;
-      }
-    }
-    return _RgbImage(rgb, w, h);
-  }
-}
-
-class _RgbImage {
-  _RgbImage(this.bytes, this.width, this.height);
-  final Uint8List bytes;
-  final int width;
-  final int height;
 }

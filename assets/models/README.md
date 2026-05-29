@@ -20,6 +20,22 @@ If a chosen model differs (different indices, box format, or output count),
 change only `ToyModelConfig` and `TfliteTensorOutputParser` /
 `TfliteToyDetectorAdapter` — never the business layer.
 
+## Camera image preprocessing (Phase 2c.1)
+
+Frames are converted to the model input by `CameraImagePreprocessor` via the pure
+`ImageFormatConverter`:
+
+- **YUV420 (Android):** BT.601 full-range → RGB, honoring Y/U/V row and pixel
+  strides (planar or semi-planar).
+- **BGRA8888 (iOS):** channel reorder → RGB.
+- Then nearest-neighbor resize to `inputWidth × inputHeight` and normalize.
+- Unsupported formats / short planes throw `TfliteRuntimeException` and the frame
+  is dropped (no crash).
+
+**Orientation limitation:** the buffer is in the camera's native sensor
+orientation; rotation to upright is deferred to on-device validation (2c.2). A
+model trained on upright images may need that rotation before it performs well.
+
 ## Class order
 
 The model's class indices must map to `ToyModelConfig.labels`, in order. Every

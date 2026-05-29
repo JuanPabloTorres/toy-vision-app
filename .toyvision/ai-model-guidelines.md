@@ -61,6 +61,15 @@ The native inference runtime sits behind the `ToyModelRuntime` seam; only
 - **Model file:** `assets/models/toy_detector.tflite` (none committed yet).
 - **Input:** `[1, inputHeight, inputWidth, 3]` float; normalized
   `(pixel - inputMean) / inputStd` (defaults `0 / 255`).
+- **Supported camera formats (Phase 2c.1):** Android **YUV420** (planar or
+  semi-planar; honors Y/U/V row & pixel strides; BT.601 full-range → RGB) and
+  iOS **BGRA8888** (channel reorder). Conversion is pure and synthetic-plane
+  tested in `image_format_converter.dart`. Unsupported formats and short/empty
+  planes fail with `TfliteRuntimeException` → frame dropped (non-fatal).
+- **Orientation:** the input buffer is in the camera's native (sensor)
+  orientation. Rotation to upright is **not** applied yet — it depends on device
+  sensor orientation and is a Phase 2c.2 / on-device concern. We do not guess
+  transforms without device QA.
 - **Output (SSD-style, indices configurable in `ToyModelConfig`):** boxes
   `[1, N, 4]` as `[ymin, xmin, ymax, xmax]`, classes `[1, N]`, scores `[1, N]`,
   `N = maxDetections`.
