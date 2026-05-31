@@ -75,3 +75,57 @@ none. Real alignment must be confirmed on a device:
 | F | Rotated boxes line up with detected objects | Pending |
 | G | `PreviewCoordinateMapper` cover mapping aligns box to cropped preview | Pending |
 | H | Front-camera mirroring (if used) is correct | Pending |
+
+## Phase 2d real-device pass for the MOCK pipeline — 2026-05-30
+
+Context: validated on a Samsung Galaxy S25 (Android 16, serial RFCY2244PCJ).
+The real camera plumbing from Phase 2a is now visually confirmed end to end on
+hardware, but TFLite is still **not** enabled — the mock detector remains the
+default and no `.tflite` model is committed.
+
+### What this validates
+
+- A real `CameraImage` stream reaches our pipeline (not just unit-test fakes).
+- Clean camera open → active → close lifecycle in logcat
+  (`CAMERA_STATE_OPENING` → `OPEN` → `ACTIVE` → `CLOSING` → `IDLE` → `CLOSED`,
+  no `onError`, no `FATAL`, no `Exception`).
+- Mock detections drive the overlay, the "Toys counted" counter, and the
+  "By category" panel correctly; the count is stable (duplicate prevention
+  works end to end).
+- People are ignored end to end: the TV in the preview shows two people, and
+  neither is labeled or boxed — the business-layer ignore rules hold on real
+  hardware, not only in tests.
+- The privacy notice is rendered exactly as written:
+  "Toys only. Runs on your device. No video saved or uploaded. People are
+  ignored."
+
+### What this does NOT validate
+
+- Real YUV420 conversion correctness against a trained model (still pending,
+  because no model exists yet).
+- BGRA8888 on iOS (still pending — no iOS device was used).
+- Orientation / rotation under a real model (still pending — the geometry
+  mappers in `lib/detection/geometry/` exist and are unit-tested but are not
+  wired; the preview is in sensor orientation).
+- Preview-to-overlay pixel alignment (`PreviewCoordinateMapper` is not wired;
+  the overlay paints with `Positioned.fill` over a `BoxFit.cover` preview, so
+  box placement is approximate).
+- On-device latency / FPS with real inference.
+- Pause / resume / reset and background ↔ foreground interactive flows — the
+  user returned the QA template with the `[PASO/FALLO]` and `[SI/NO]`
+  placeholders unfilled, so these remain pending human verification.
+
+### Status of existing geometry items
+
+Items **E–H** above (sensor orientation, rotated boxes, `PreviewCoordinateMapper`
+cover mapping, front-camera mirroring) remain **Pending**. Phase 2d did not
+change their state; they still require a real-model on-device pass.
+
+### Final decision
+
+- Phase 2d: **passed** for the mock real-device pipeline.
+- **Approved** to proceed to the dataset / model pipeline (see
+  [`../model-training/README.md`](../model-training/README.md)).
+- **Not approved** to enable TFLite by default yet.
+- On-device validation for real inference (this document's existing checklist,
+  rows 1–9 and A–H) remains pending until a trained model exists.
