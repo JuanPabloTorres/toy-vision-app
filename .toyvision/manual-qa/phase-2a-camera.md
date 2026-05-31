@@ -175,3 +175,32 @@ disconnecting, not an app crash.
 
 Next: see [../model-training/README.md](../model-training/README.md) and
 [phase-2c-tflite.md](phase-2c-tflite.md).
+
+## Phase 3.3 product-completion checks (mock detector still default)
+
+After product-completion UI changes (compact privacy, compact category panel,
+detector-mode chip, in-memory save + history). These remain **Pending human
+visual verification** on the Galaxy S25; the underlying behavior is covered by
+unit + widget tests.
+
+| # | Check | Status |
+|---|-------|--------|
+| 34 | Privacy notice shows full text on first open | Pending |
+| 35 | Tapping the privacy notice collapses it to "On-device only" | Pending |
+| 36 | Tapping again re-expands it | Pending |
+| 37 | Category panel scrolls horizontally with many categories | Pending |
+| 38 | Category panel no longer covers the lower preview area | Pending |
+| 39 | `Mode: Mock` chip is visible at top-right | Pending |
+| 40 | Save button is disabled while the count is 0 | Pending |
+| 41 | Save button enables once the count is ≥ 1 | Pending |
+| 42 | Tapping Save shows "Summary saved · N toys" snackbar | Pending |
+| 43 | Snackbar "View" action opens the Saved Scans screen | Pending |
+| 44 | Saved Scans screen lists newest-first | Pending |
+| 45 | Each saved tile shows total, time, per-category badges, and `Mode: …` chip | Pending |
+| 46 | Saved Scans "Clear all" empties the list | Pending |
+| 47 | No image, video, or frame is ever written (storage perms not requested) | PASS — merged manifest unchanged, still `CAMERA` only |
+| 48 | Pause / resume / reset still work after the layout changes | Pending |
+| 49 | Existing 33-item checklist above is not regressed | Pending |
+
+The interactive items from earlier (8–12) remain **Pending** as well; nothing
+in Phase 3.3 closes them.

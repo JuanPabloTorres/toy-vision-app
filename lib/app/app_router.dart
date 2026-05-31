@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../camera/screens/live_camera_screen.dart';
+import '../ui/screens/scan_history_screen.dart';
 
 /// Centralized route names and route generation for ToyVision.
-///
-/// Phase 1 has a single destination: the live camera screen. Routes are
-/// centralized here so new screens (history, saved summaries) plug in without
-/// touching the app shell.
 class AppRoutes {
   AppRoutes._();
 
   static const String live = '/';
+  static const String history = '/history';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case history:
+        return MaterialPageRoute<void>(
+          builder: (_) => const ScanHistoryScreen(),
+          settings: settings,
+        );
       case live:
       default:
         return MaterialPageRoute<void>(

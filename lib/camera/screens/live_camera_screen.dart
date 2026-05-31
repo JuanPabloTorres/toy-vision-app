@@ -2,10 +2,14 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_router.dart';
 import '../../app/app_theme.dart';
 import '../../business/live_detection_state.dart';
+import '../../storage/in_memory_scan_history_repository.dart';
+import '../../storage/saved_scan_summary.dart';
 import '../../ui/components/app_icon_button.dart';
 import '../../ui/components/app_status_chip.dart';
+import '../../ui/components/detector_mode_chip.dart';
 import '../../ui/components/privacy_notice.dart';
 import '../../ui/overlays/detection_overlay_painter.dart';
 import '../../ui/panels/live_counter_panel.dart';
@@ -17,14 +21,10 @@ import '../live_detection_controller.dart';
 import '../models/camera_status.dart';
 import '../services/camera_controller_service.dart';
 
-/// The live detection screen. It selects the correct view for the camera
-/// status, renders the real camera preview when ready, and composes the overlay,
-/// panels, and controls on top.
-///
-/// It renders prepared state only: no throttling, detection, counting, IoU,
-/// validation, tracking, or detector selection happens here. App lifecycle
-/// changes are forwarded to the controller so the camera is released when
-/// backgrounded.
+/// The live detection screen. Renders prepared state only: no throttling,
+/// detection, counting, IoU, validation, tracking, or detector selection
+/// happens here. App lifecycle changes are forwarded to the controller so the
+/// camera is released when backgrounded.
 class LiveCameraScreen extends ConsumerStatefulWidget {
   const LiveCameraScreen({super.key});
 
@@ -99,7 +99,6 @@ class _LiveDetectionView extends ConsumerWidget {
         fit: StackFit.expand,
         children: [
           _CameraPreviewCover(controller: cameraController),
-          // Detection overlay (bounding boxes for tracked toys).
           Positioned.fill(
             child: CustomPaint(
               painter: DetectionOverlayPainter(toys: state.visibleToys),
@@ -132,7 +131,6 @@ class _CameraPreviewCover extends StatelessWidget {
       child: FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          // previewSize is reported in sensor (landscape) orientation.
           width: previewSize.height,
           height: previewSize.width,
           child: CameraPreview(c),
@@ -157,10 +155,19 @@ class _TopBar extends StatelessWidget {
       left: AppSpacing.lg,
       right: AppSpacing.lg,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           LiveCounterPanel(total: state.totalCount),
-          AppStatusChip(label: label, kind: kind),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppStatusChip(label: label, kind: kind),
+              const SizedBox(height: AppSpacing.sm),
+              const DetectorModeChip(),
+            ],
+          ),
         ],
       ),
     );
@@ -177,17 +184,17 @@ class _BottomPanels extends StatelessWidget {
     return Positioned(
       left: AppSpacing.lg,
       right: AppSpacing.lg,
-      bottom: 96,
+      bottom: 88,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!state.hasVisibleToys && !state.isPaused) ...[
             const EmptyDetectionHint(),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
           ],
           ToySummaryPanel(summary: state.summary),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           const PrivacyNotice(),
         ],
       ),
@@ -195,14 +202,15 @@ class _BottomPanels extends StatelessWidget {
   }
 }
 
-class _Controls extends StatelessWidget {
+class _Controls extends ConsumerWidget {
   const _Controls({required this.state, required this.controller});
 
   final LiveDetectionState state;
   final LiveDetectionController controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canSave = state.totalCount > 0;
     return Positioned(
       left: AppSpacing.lg,
       right: AppSpacing.lg,
@@ -210,6 +218,12 @@ class _Controls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+          AppIconButton(
+            icon: Icons.history,
+            tooltip: 'Saved scans',
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.history),
+          ),
           AppIconButton(
             icon: state.isPaused ? Icons.play_arrow : Icons.pause,
             tooltip: state.isPaused ? 'Resume' : 'Pause',
@@ -220,14 +234,39 @@ class _Controls extends StatelessWidget {
             tooltip: 'Reset count',
             onPressed: controller.reset,
           ),
-          const AppIconButton(
+          AppIconButton(
             icon: Icons.save_alt,
-            tooltip: 'Save summary (Phase 2b+)',
+            tooltip: canSave ? 'Save summary' : 'Save summary (count is 0)',
             emphasized: true,
-            // Storage layer arrives in a later phase; summary-only save.
-            onPressed: null,
+            onPressed: canSave ? () => _save(context, ref) : null,
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _save(BuildContext context, WidgetRef ref) async {
+    final liveState = ref.read(liveDetectionControllerProvider);
+    if (liveState.totalCount == 0) return;
+    final mode = ref.read(toyDetectorModeProvider);
+    final now = DateTime.now();
+    final summary = SavedScanSummary(
+      id: now.millisecondsSinceEpoch.toString(),
+      createdAt: now,
+      totalToys: liveState.totalCount,
+      perCategory: Map<String, int>.from(liveState.summary.perCategory),
+      detectorMode: mode.name,
+    );
+    await ref.read(scanHistoryProvider.notifier).save(summary);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Summary saved · ${summary.totalToys} toys'),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () =>
+              Navigator.pushNamed(context, AppRoutes.history),
+        ),
       ),
     );
   }

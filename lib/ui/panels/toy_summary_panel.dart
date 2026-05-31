@@ -6,6 +6,9 @@ import '../components/app_badge.dart';
 import '../components/app_glass_panel.dart';
 
 /// Per-category count summary. Renders prepared summary data only.
+///
+/// Compact, single-row, horizontally scrollable — keeps the camera area
+/// unblocked even when many categories have been counted.
 class ToySummaryPanel extends StatelessWidget {
   const ToySummaryPanel({super.key, required this.summary});
 
@@ -16,29 +19,24 @@ class ToySummaryPanel extends StatelessWidget {
     if (summary.perCategory.isEmpty) {
       return const SizedBox.shrink();
     }
-    final entries = summary.perCategory.entries.toList();
+    final entries = summary.perCategory.entries.toList(growable: false);
     return AppGlassPanel(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'By category',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.onSurfaceMuted),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final e in entries)
-                AppBadge(label: e.key, value: '${e.value}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < entries.length; i++) ...[
+              AppBadge(label: entries[i].key, value: '${entries[i].value}'),
+              if (i < entries.length - 1)
+                const SizedBox(width: AppSpacing.sm),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
