@@ -2,8 +2,15 @@
 
 Forward-looking specification. **No dataset has been collected, no model has been
 trained, no `.tflite` is committed.** The default detector is `MockToyDetector`;
-real inference is gated and Phase 2d physical-device QA is **BLOCKED**. Nothing
-in this plan changes app runtime behavior.
+real inference is gated and on-device validation for a real model is still
+pending (Phase 2d passed for the mock pipeline only — see
+[../manual-qa/phase-2a-camera.md](../manual-qa/phase-2a-camera.md)). Nothing in
+this plan changes app runtime behavior.
+
+> For an action-oriented, day-to-day capture checklist, see
+> [collection-guide.md](collection-guide.md). This file is the deeper plan;
+> the collection guide is the short companion you keep open while taking
+> photos.
 
 The detector only proposes boxes, class indices, and scores. Counting, validity,
 acceptable confidence, duplicate identity, and ignored behavior are owned by the
