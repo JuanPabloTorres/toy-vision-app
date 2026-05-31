@@ -20,7 +20,16 @@ class ModelValidationResult {
 /// be updated in the same change rather than letting an unknown class silently
 /// flow through (where it would be treated as `unknown` and ignored).
 class ModelMetadataValidator {
-  const ModelMetadataValidator();
+  const ModelMetadataValidator({this.allowDuplicateLabels = false});
+
+  /// When true, repeated labels in `config.labels` are allowed.
+  ///
+  /// ToyVision-native configs map one model index to one unique business
+  /// label, so duplicates indicate a likely typo (default). COCO-style
+  /// configs (see `coco_ssd_toy_model_config.dart`) intentionally repeat
+  /// labels like `'unknown'`, `'furniture'`, and `'clothes'` across many
+  /// model indices — for those, callers opt in via this flag.
+  final bool allowDuplicateLabels;
 
   ModelValidationResult validate(
     ToyModelConfig config,
@@ -46,7 +55,7 @@ class ModelMetadataValidator {
 
     final seen = <String>{};
     for (final label in config.labels) {
-      if (!seen.add(label)) {
+      if (!seen.add(label) && !allowDuplicateLabels) {
         errors.add('Duplicate label in model class list: $label');
       }
       if (!registry.isKnown(label)) {
