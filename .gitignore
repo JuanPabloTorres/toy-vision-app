@@ -26,3 +26,15 @@ coverage/
 .codegraph/
 .swarm/
 .mcp-cache/
+
+# Android local/cache/crash artifacts
+android/.kotlin/
+android/hs_err_pid*.log
+android/replay_pid*.log
+
+# Python virtual env / cache (local tooling)
+.venv/
+**/.venv/
+tools/toy_model_export/.venv*/
+__pycache__/
+*.pyc

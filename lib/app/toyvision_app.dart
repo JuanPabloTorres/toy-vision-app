@@ -9,10 +9,10 @@ class ToyVisionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ToyVision Real-Time',
+      title: 'Toy Vision',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      initialRoute: AppRoutes.live,
+      theme: AppTheme.light(),
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }

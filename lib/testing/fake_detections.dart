@@ -33,8 +33,11 @@ class FakeDetections {
   static RawDetection person({BoundingBox? box}) =>
       raw(label: 'person', confidence: 0.97, box: box);
 
+  /// A registered toy label below its confidence threshold (stuffed_animal
+  /// requires ≥0.40; 0.30 triggers the `low_confidence` reject bucket).
+  /// Kept under the historical name so existing call-sites don't churn.
   static RawDetection lowConfidenceDoll({BoundingBox? box}) =>
-      raw(label: 'doll', confidence: 0.30, box: box);
+      raw(label: 'stuffed_animal', confidence: 0.30, box: box);
 
   static RawDetection unknownObject({BoundingBox? box}) =>
       raw(label: 'spaceship', confidence: 0.99, box: box);

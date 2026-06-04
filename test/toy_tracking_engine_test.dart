@@ -67,6 +67,45 @@ void main() {
     expect(engine.tracked, isEmpty);
   });
 
+  test(
+      'a camera pan that drops IoU below the match threshold STILL keeps the '
+      'same identity (proximity carries the match)', () {
+    // 0.10 shift per frame on a 0.20 box → frame-to-frame IoU ≈ 0.33, below
+    // iouMatchThreshold (0.45). The OLD IoU-only tracker re-issued a new id
+    // here (the "yellow box jumps" bug); the blended score must hold the id.
+    final engine = ToyTrackingEngine(config: config);
+    final id0 = engine.update([det(0.20, 0.40)]).single.id;
+    var tracked = engine.update([det(0.30, 0.40)]);
+    expect(tracked, hasLength(1));
+    expect(tracked.single.id, id0);
+    tracked = engine.update([det(0.40, 0.40)]);
+    expect(tracked, hasLength(1));
+    expect(tracked.single.id, id0);
+  });
+
+  test('class flicker (same spot, different label) keeps the same identity',
+      () {
+    // The detector relabels the same physical toy between frames. Strong
+    // overlap must outweigh the changed class name so the id is stable.
+    final engine = ToyTrackingEngine(config: config);
+    final id0 = engine.update([det(0.30, 0.40, label: 'toy_car')]).single.id;
+    final tracked = engine.update([det(0.30, 0.40, label: 'stuffed_animal')]);
+    expect(tracked, hasLength(1));
+    expect(tracked.single.id, id0);
+    expect(tracked.single.label, 'stuffed_animal'); // label refreshed
+  });
+
+  test('two distinct toys never merge under the blended score (across frames)',
+      () {
+    final engine = ToyTrackingEngine(config: config);
+    final idA = engine.update([det(0.10, 0.40)]).single.id;
+    final tracked = engine.update([det(0.10, 0.40), det(0.70, 0.40)]);
+    expect(tracked, hasLength(2));
+    final ids = tracked.map((t) => t.id).toSet();
+    expect(ids, contains(idA)); // toy A kept its id
+    expect(ids.length, 2); // toy B got its own — no merge
+  });
+
   test('distinct toys get distinct identities', () {
     final engine = ToyTrackingEngine(config: config);
     final tracked = engine.update([

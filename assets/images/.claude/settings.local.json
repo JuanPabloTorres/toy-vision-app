@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(git checkout:*)",
+      "Bash(git -C \"C:\\\\Users\\\\juanp\\\\source\\\\repos\\\\Toy-Vision\" checkout HEAD -- \"assets/images/toy_vision_app_icon.png\")",
+      "Bash(git -C \"C:\\\\Users\\\\juanp\\\\source\\\\repos\\\\Toy-Vision\" status assets/images/toy_vision_app_icon.png)",
+      "Bash(copy:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright",
+    "context7",
+    "codegraph",
+    "ruflo"
+  ]
+}

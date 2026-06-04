@@ -32,8 +32,7 @@ class ToySummaryPanel extends StatelessWidget {
           children: [
             for (var i = 0; i < entries.length; i++) ...[
               AppBadge(label: entries[i].key, value: '${entries[i].value}'),
-              if (i < entries.length - 1)
-                const SizedBox(width: AppSpacing.sm),
+              if (i < entries.length - 1) const SizedBox(width: AppSpacing.sm),
             ],
           ],
         ),

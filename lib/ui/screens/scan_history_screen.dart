@@ -27,8 +27,7 @@ class ScanHistoryScreen extends ConsumerWidget {
             IconButton(
               tooltip: 'Clear all',
               icon: const Icon(Icons.delete_outline),
-              onPressed: () =>
-                  ref.read(scanHistoryProvider.notifier).clear(),
+              onPressed: () => ref.read(scanHistoryProvider.notifier).clear(),
             ),
         ],
       ),
@@ -111,8 +110,8 @@ class _SummaryTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             timeLabel,
-            style: textTheme.bodyMedium
-                ?.copyWith(color: AppColors.onSurfaceMuted),
+            style:
+                textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceMuted),
           ),
           if (summary.perCategory.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),

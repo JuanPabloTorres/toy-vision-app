@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Phase 6.0: the ultralytics_yolo plugin downloads the default model
+         (yolo26n, ~6 MB) on first run and caches it locally. After that, no
+         network is used. Required only for that first download. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- The camera plugin's manifest declares these for audio/photo capture,
          which ToyVision never does (audio disabled, no frames/video saved).
          Strip them so the app requests neither microphone nor storage access. -->
@@ -11,7 +16,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
     <application
-        android:label="toyvision_realtime"
+        android:label="Toy Vision"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

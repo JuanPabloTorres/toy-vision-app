@@ -40,7 +40,10 @@ class PreviewCoordinateMapper {
         coverScale(imageWidth, imageHeight, previewWidth, previewHeight);
     final scaledW = imageWidth * scale;
     final scaledH = imageHeight * scale;
-    return (dx: (previewWidth - scaledW) / 2, dy: (previewHeight - scaledH) / 2);
+    return (
+      dx: (previewWidth - scaledW) / 2,
+      dy: (previewHeight - scaledH) / 2
+    );
   }
 
   /// Map a normalized image-space [box] into preview pixel coordinates.

@@ -11,7 +11,7 @@ void main() {
     final result = rules.validate([FakeDetections.toyCar(confidence: 0.9)]);
     expect(result, hasLength(1));
     expect(result.single.label, 'toy_car');
-    expect(result.single.displayName, 'Toy car');
+    expect(result.single.displayName, 'Carrito');
   });
 
   test('rejects a person (ignored category)', () {
@@ -47,5 +47,23 @@ void main() {
     ]);
     expect(result, hasLength(1));
     expect(result.single.label, 'toy_car');
+  });
+
+  test('validateWithReasons attributes each rejection to a reason bucket', () {
+    final reasons = <String, int>{};
+    final result = rules.validateWithReasons(
+      [
+        FakeDetections.toyCar(confidence: 0.9),
+        FakeDetections.person(),
+        FakeDetections.lowConfidenceDoll(),
+        FakeDetections.unknownObject(),
+      ],
+      reasons,
+    );
+    expect(result, hasLength(1));
+    expect(result.single.label, 'toy_car');
+    expect(reasons['ignored'], 1);
+    expect(reasons['low_confidence'], 1);
+    expect(reasons['unknown'], 1);
   });
 }

@@ -17,14 +17,19 @@ class ModelLoadingView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isError)
-            const Icon(Icons.error_outline, size: 48, color: AppColors.statusError)
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.statusError,
+            )
           else
             const CircularProgressIndicator(),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            message ?? (isError ? 'Detection unavailable' : 'Starting detection…'),
-            style: textTheme.bodyMedium
-                ?.copyWith(color: AppColors.onSurfaceMuted),
+            message ??
+                (isError ? 'Detection unavailable' : 'Starting detection…'),
+            style:
+                textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceMuted),
           ),
         ],
       ),

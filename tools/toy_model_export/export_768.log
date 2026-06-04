@@ -1,0 +1,30 @@
+C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py:1: SyntaxWarning: invalid escape sequence '\.'
+  """Export a YOLO-World detector specialized for toys to TFLite.
+[toy-export] loading yolov8s-world (downloads on first run)…
+[toy-export] fixing vocabulary to 33 toy classes…
+Traceback (most recent call last):
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py", line 135, in <module>
+    main()
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py", line 95, in main
+    model.set_classes(PROMPTS)
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\ultralytics\models\yolo\model.py", line 188, in set_classes
+    self.model.set_classes(classes)
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\ultralytics\nn\tasks.py", line 973, in set_classes
+    self.txt_feats = self.get_text_pe(text, batch=batch, cache_clip_model=cache_clip_model)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\ultralytics\nn\tasks.py", line 992, in get_text_pe
+    self.clip_model = build_text_model("clip:ViT-B/32", device=device)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\ultralytics\nn\text_model.py", line 354, in build_text_model
+    return CLIP(size, device)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\ultralytics\nn\text_model.py", line 83, in __init__
+    self.model, self.image_preprocess = clip.load(size, device=device)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\clip\clip.py", line 146, in load
+    model = torch.jit.load(opened_file, map_location=device if jit else "cpu").eval()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv312\Lib\site-packages\torch\jit\_serialization.py", line 201, in load
+    cpp_module = torch._C.import_ir_module_from_buffer(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+MemoryError: bad allocation

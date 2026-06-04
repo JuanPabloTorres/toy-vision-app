@@ -70,12 +70,12 @@ void main() {
         id: '01',
         total: 3,
         perCategory: const {'Toy car': 2, 'Doll': 1},
-        mode: 'tfliteWithFallback',
+        mode: 'mlkitWithFallback',
       ),
     );
     final saved = container.read(scanHistoryProvider).single;
     expect(saved.totalToys, 3);
     expect(saved.perCategory, {'Toy car': 2, 'Doll': 1});
-    expect(saved.detectorMode, 'tfliteWithFallback');
+    expect(saved.detectorMode, 'mlkitWithFallback');
   });
 }

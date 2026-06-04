@@ -19,8 +19,12 @@ class TrackedToy {
   });
 
   final int id;
-  final String label;
-  final String displayName;
+
+  /// Most recent class label/name. Mutable because the detector may relabel
+  /// the same physical toy between frames (class flicker); the tracker keeps
+  /// the identity ([id]) stable and just refreshes the label to the latest.
+  String label;
+  String displayName;
 
   BoundingBox box;
   double confidence;

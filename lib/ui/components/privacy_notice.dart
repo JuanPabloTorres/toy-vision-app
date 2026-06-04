@@ -40,8 +40,7 @@ class PrivacyNotice extends ConsumerWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () =>
-          ref.read(privacyAcknowledgementProvider.notifier).toggle(),
+      onTap: () => ref.read(privacyAcknowledgementProvider.notifier).toggle(),
       child: AppGlassPanel(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,

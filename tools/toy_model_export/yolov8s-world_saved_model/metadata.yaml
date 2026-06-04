@@ -1,0 +1,42 @@
+description: 'Ultralytics YOLOv8s-world model '
+author: Ultralytics
+date: '2026-06-02T17:49:52.912199'
+version: 8.4.60
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 480
+- 480
+names:
+  0: teddy bear
+  1: stuffed animal
+  2: plush toy
+  3: doll
+  4: toy car
+  5: toy truck
+  6: fire truck
+  7: toy train
+  8: helicopter
+  9: toy helicopter
+  10: toy airplane
+  11: toy plane
+  12: ball
+  13: building blocks
+  14: lego
+  15: ring stacker
+  16: stacking rings
+  17: action figure
+  18: puzzle
+  19: toy
+args:
+  data: null
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: false
+  nms: false
+channels: 3
+end2end: false

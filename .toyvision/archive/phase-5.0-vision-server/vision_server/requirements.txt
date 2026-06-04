@@ -1,0 +1,20 @@
+# ToyVision local vision server — Phase 5.0.1 (real YOLO-World detection).
+#
+# Heavy deps included: ultralytics (which pulls torch + torchvision),
+# Pillow (JPEG decode), numpy. First install is large (~2 GB with CUDA;
+# ~500 MB CPU-only); the YOLO-World weights file (~140 MB) is downloaded
+# lazily on first /detect call.
+
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+
+# Image decode (Pillow is enough; opencv-python-headless not required).
+Pillow>=10.0.0
+numpy>=1.24,<3.0
+
+# YOLO-World via Ultralytics. AGPL-3.0 for the framework code; weights
+# are released under the same. For LOCAL development on the user's PC
+# this is acceptable. Production deployment would need a licence review
+# or a non-AGPL alternative (Grounding DINO, OWLv2).
+ultralytics>=8.2.0

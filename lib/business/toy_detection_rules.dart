@@ -43,4 +43,46 @@ class ToyDetectionRules {
     if (!d.box.isValid) return false;
     return true;
   }
+
+  /// Debug-only sibling of [validate] that also accumulates a reject-reason
+  /// histogram into [reasons]. Behavior on accepted detections is identical
+  /// to [validate]; on rejections it increments one of:
+  /// `unknown`, `not_toy`, `ignored`, `low_confidence`, `invalid_box`.
+  ///
+  /// Pure observation — no business decision differs. Used by the Phase 3.5.1
+  /// debug diagnostics to surface why baseline detections never reach the UI.
+  List<DetectionResult> validateWithReasons(
+    List<RawDetection> raw,
+    Map<String, int> reasons,
+  ) {
+    final results = <DetectionResult>[];
+    for (final d in raw) {
+      final reason = _rejectReason(d);
+      if (reason == null) {
+        final def = registry.lookup(d.label);
+        results.add(
+          DetectionResult(
+            label: d.label,
+            displayName: def.displayName,
+            confidence: d.confidence,
+            box: d.box,
+          ),
+        );
+      } else {
+        reasons.update(reason, (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+    return results;
+  }
+
+  String? _rejectReason(RawDetection d) {
+    if (!registry.isKnown(d.label)) return 'unknown';
+    final def = registry.lookup(d.label);
+    if (d.label == 'not_toy') return 'not_toy';
+    if (def.isIgnored) return 'ignored';
+    if (!def.countsAsToy) return 'not_toy';
+    if (d.confidence < def.minimumConfidence) return 'low_confidence';
+    if (!d.box.isValid) return 'invalid_box';
+    return null;
+  }
 }

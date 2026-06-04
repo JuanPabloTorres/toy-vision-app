@@ -7,13 +7,15 @@ Camera frame
   ↓
 FrameProcessingService      (throttle, skip-if-busy)
   ↓
-ToyDetector                 (mock now, TFLite later) → RawDetection list
+ToyDetector                 (mock | ML Kit on-device | local vision server) → RawDetection list
   ↓
 ToyDetectionRules           (category + confidence + bbox validation)
   ↓
 ToyTrackingEngine           (IoU match, identity, missing-frame handling)
   ↓
 ToyCountingService          (stability + duplicate prevention → count)
+  ↓
+CandidateReviewService      (manual Toy / Not-Toy confirmation, optional category)
   ↓
 LiveDetectionState          (immutable snapshot)
   ↓
@@ -28,20 +30,31 @@ Each arrow is a one-way handoff. No stage reaches backward; the UI consumes only
 - **FrameProcessingService** — decides which frames to process; drops frames while
   inference is in flight; never blocks the camera preview.
 - **ToyDetector** — returns raw detections only (`label`, `confidence`, `boundingBox`).
+  One of three implementations is selected at runtime via `ToyDetectorMode`:
+  `MockToyDetector` (deterministic / demo), `MlKitObjectDetector` (Google ML Kit
+  on-device, Object Assist), or `RemoteVisionDetector` (HTTP client → local Python
+  vision server in `tools/vision_server/`). Non-mock primaries are wrapped in
+  `FallbackToyDetector` so a failed init or runtime error degrades to the mock.
 - **ToyDetectionRules** — filters raw detections against `ToyCategoryRegistry` and
   thresholds; produces validated candidate detections.
 - **ToyTrackingEngine** — assigns/maintains identity across frames using IoU, handles
   brief disappearances up to `maximumMissingFrames`.
 - **ToyCountingService** — promotes a tracked toy to "counted" once it is stable for
   `minimumStableFrames`; sets `hasBeenCounted`.
+- **CandidateReviewService** — collects tracked toys as review candidates with status
+  `pending | confirmed | ignored` and an optional user-assigned category. UI surfaces
+  this via the `ReviewPanel` modal and the `CandidateReviewSummaryChip`. Confirmation is
+  manual; nothing is auto-confirmed from detector output.
 - **LiveDetectionState** — immutable view model: current boxes, total count, per-category
-  summary, model status.
+  summary, detector mode + fallback state, review summary.
 
 ## Performance rules
 
 - Do not run inference on every frame by default — process selected frames only.
 - Skip frames while inference is already running; **prevent concurrent inference**.
-- Do not call the backend inside the live detection loop.
+- The only network call permitted inside the live loop is the user-opt-in POST to the
+  local vision server at the user-configured `baseUrl`. There is no other backend, no
+  analytics call, and no third-party endpoint.
 - Keep the overlay lightweight — no heavy work in `paint()`.
 - Dispose camera resources correctly on screen exit / app pause.
 - Target inference rate: `targetInferenceFps` (5–10), defined in

@@ -1,24 +1,33 @@
 # AI Model Guidelines — ToyVision Real-Time
 
-The model is a **detector**, not the business decision-maker. It proposes; the Business
-Logic Layer disposes.
+The detector is **a proposer**, not the business decision-maker. It emits raw observations;
+the Business Logic Layer (`ToyDetectionRules`, `ToyTrackingEngine`, `ToyCountingService`,
+and the manual `CandidateReviewService`) decides what those observations mean.
+
+## Detector modes (Phase 5.0)
+
+Three detectors are wired behind the `ToyDetector` interface and selected at runtime via
+`ToyDetectorMode`:
+
+| Mode | Primary | Fallback | When to use |
+|------|---------|----------|-------------|
+| `mock` | `MockToyDetector` | — | Demo, development, deterministic tests |
+| `mlkitWithFallback` | `MlKitObjectDetector` (Google ML Kit, on-device) | `MockToyDetector` | Default for users; offline; coarse 5-class output is treated as an "Object Assist" hint that the user confirms via the manual review panel |
+| `remoteVisionServer` | `RemoteVisionDetector` (HTTP client → local Python server in `tools/vision_server/`) | `MockToyDetector` | Open-vocabulary detection on the user's own PC over the LAN; never a third party |
+
+The mode toggle cycles `mock → mlkitWithFallback → remoteVisionServer → mock`. Every
+non-mock primary is wrapped in `FallbackToyDetector` so a failed initialize or runtime
+error degrades to the mock detector instead of crashing the live loop.
 
 ## Phase rule
 
-The MVP **must** begin with `MockToyDetector`. Only after the camera, overlay, tracking,
-and counting work correctly — and pass tests — may the real model be connected via
-`TfliteToyDetector` (wrapped by `TfliteToyDetectorAdapter`).
-
-## Model direction
-
-- YOLO-based detector.
-- TensorFlow Lite export.
-- Local, on-device inference.
-- Start with a small / nano model variant.
+Phase 1 began with `MockToyDetector`. Phase 5.0 adds ML Kit and the remote vision server,
+but **the mock detector is still the contract reference** — any new detector must produce
+output in the same `RawDetection` shape so it is swap-compatible.
 
 ## Model output contract
 
-The detector returns raw detections in normalized coordinates:
+Every detector returns raw detections in normalized image coordinates:
 
 ```json
 {
@@ -28,70 +37,65 @@ The detector returns raw detections in normalized coordinates:
 }
 ```
 
-`MockToyDetector` must produce output in this exact shape so it is swap-compatible with
-the real detector.
+- `label` is mapped through `ToyCategoryRegistry`. ML Kit's 5-class output is bridged by
+  `MlKitLabelMap`; remote-server labels are bridged by the server's own label mapping
+  (`tools/vision_server/label_mapping.py`).
+- A label the registry does not know is treated as `unknown` and ignored — never counted.
 
-## The model must not
+## The detector must not
 
 - decide the final count;
 - decide user-facing certainty;
 - identify people;
 - perform face recognition;
-- save frames;
-- upload frames.
+- save frames to disk;
+- upload frames anywhere other than the user's own local vision server (and only when the
+  user has explicitly enabled `remoteVisionServer` mode).
+
+## Remote vision server contract
+
+The remote detector is an HTTP client; the server is the user's own machine on the LAN.
+
+- **Transport:** `http` package; JSON request/response.
+- **Schemas:** `lib/detection/detectors/remote/remote_vision_schemas.dart` is a 1:1 mirror
+  of `tools/vision_server/schemas.py`. Wire-shape changes require updating both files
+  in the same change.
+- **Frame encoding:** `CameraImageJpegEncoder` converts YUV420 (Android) / BGRA8888 (iOS)
+  to a downscaled JPEG (`targetMaxSide ≈ 480`, `jpegQuality ≈ 60`) before POSTing.
+- **Privacy:** frames are sent only to the user-configured `baseUrl`. There is no cloud
+  endpoint, no analytics, no third-party network call. The server is operated by the user.
+- **Failure policy:** any HTTP/network/timeout error in `RemoteVisionDetector` → frame
+  dropped (non-fatal); if `initialize` fails, `FallbackToyDetector` switches to mock.
+
+## ML Kit (Object Assist) contract
+
+- **Plugin:** `google_mlkit_object_detection` (on-device, no network).
+- **Output:** ML Kit emits a small, generic class set ("Home good", "Fashion good",
+  "Food", "Place", "Plant"). `MlKitLabelMap` translates these into registry labels.
+- **Intended UX:** treated as an *assist*. The user confirms / rejects each candidate via
+  the review panel before it is counted. The "Object Assist" banner explains this in the
+  live screen.
+- **Failure policy:** plugin not available, init error, or per-frame error → drop frame
+  and let `FallbackToyDetector` use the mock detector.
 
 ## Class list discipline
 
-- The model's class list and `ToyCategoryRegistry` must stay in sync.
-- Changing a label, adding a class, or removing a class requires updating the registry in
-  the same change. See [business-logic-principles.md](business-logic-principles.md).
-- A label the registry does not know is treated as `unknown` and ignored — never counted.
+- The detector's effective class list and `ToyCategoryRegistry` must stay in sync.
+- Changing a label, adding a category, or removing a category requires updating the
+  registry (and any detector-side label maps) in the same change.
+  See [business-logic-principles.md](business-logic-principles.md).
 
-## Versioning & evaluation
+## Out of scope (deprecated)
 
-- Every exported model has a version recorded (and, later, a `ModelVersionRepository`).
-- Models are evaluated before promotion; accuracy/latency are recorded.
-- Model selection and dataset rules are owned by the AI Vision Model Agent.
+The following paths were explored in earlier phases and have been **archived**, not
+pursued:
 
-## TFLite runtime (Phase 2c.0 foundation)
+- Custom dataset capture and training (EfficientDet via MediaPipe Model Maker, Colab).
+- Bundled `tflite_flutter` runtime and `assets/models/*.tflite`.
+- COCO SSD as a production baseline.
 
-The native inference runtime sits behind the `ToyModelRuntime` seam; only
-`tflite_interpreter_factory.dart` imports `tflite_flutter`.
-
-- **Model file:** `assets/models/toy_detector.tflite` (none committed yet).
-- **Input:** `[1, inputHeight, inputWidth, 3]` float; normalized
-  `(pixel - inputMean) / inputStd` (defaults `0 / 255`).
-- **Supported camera formats (Phase 2c.1):** Android **YUV420** (planar or
-  semi-planar; honors Y/U/V row & pixel strides; BT.601 full-range → RGB) and
-  iOS **BGRA8888** (channel reorder). Conversion is pure and synthetic-plane
-  tested in `image_format_converter.dart`. Unsupported formats and short/empty
-  planes fail with `TfliteRuntimeException` → frame dropped (non-fatal).
-- **Orientation:** the input buffer is in the camera's native (sensor)
-  orientation. Rotation to upright is **not** applied yet — it depends on device
-  sensor orientation and is a Phase 2c.2 / on-device concern. We do not guess
-  transforms without device QA.
-- **Geometry foundations (Phase 2c.2):** pure, tested helpers in
-  `lib/detection/geometry/` prepare orientation + box mapping but are **not wired
-  into production**. `FrameOrientation` (sensor+device° → clockwise quarterTurns,
-  default none = no rotation); `RotationTransform.rotateNormalized` (0/90/180/270)
-  with `clampNormalized`; `BoundingBoxMapper` (normalized ↔ pixel, non-positive dims
-  throw); `PreviewCoordinateMapper` (`BoxFit.cover` scale/offset + normalized →
-  preview-pixel). To display correctly the pipeline must eventually (1) rotate by
-  `quarterTurns`, then (2) map into the cover-cropped preview. **`BoxFit.cover`
-  crops one axis**, so a mapped box can exceed the viewport (overlay clips);
-  exact alignment + correct rotation **must be validated on a physical device**.
-- **Output (SSD-style, indices configurable in `ToyModelConfig`):** boxes
-  `[1, N, 4]` as `[ymin, xmin, ymax, xmax]`, classes `[1, N]`, scores `[1, N]`,
-  `N = maxDetections`.
-- **Class order** must map to `ToyModelConfig.labels`, all registry-known
-  (enforced by `ModelMetadataValidator`).
-- **Fallback:** missing/invalid model or mismatched shapes → fall back to
-  `MockToyDetector`; per-frame preprocessing/inference errors drop the frame
-  rather than crash the loop.
-- **Default:** `toyDetectorModeProvider = mock`. TFLite is opt-in via
-  `ToyDetectorMode.tfliteWithFallback` and only active once a valid model loads
-  and its shapes validate.
-- The model still makes **no** business decision (toy-ness, confidence
-  acceptability, ignore rules, count) — those remain in the business layer.
+All deprecated docs live in [archive/model-training/](archive/model-training/). Class
+taxonomy and privacy rules from that era survive as living reference docs in
+[reference/](reference/).
 
 Guardrail: [skills/preserve-ai-model-discipline.md](skills/preserve-ai-model-discipline.md).

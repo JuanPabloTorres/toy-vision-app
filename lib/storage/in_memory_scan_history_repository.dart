@@ -28,7 +28,7 @@ class InMemoryScanHistoryRepository extends Notifier<List<SavedScanSummary>>
 }
 
 /// The single source of saved-scan state for the UI to watch.
-final scanHistoryProvider = NotifierProvider<InMemoryScanHistoryRepository,
-    List<SavedScanSummary>>(
+final scanHistoryProvider =
+    NotifierProvider<InMemoryScanHistoryRepository, List<SavedScanSummary>>(
   InMemoryScanHistoryRepository.new,
 );

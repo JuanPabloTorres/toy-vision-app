@@ -77,8 +77,7 @@ device/emulator with an installed system image.**
 The overlay currently draws normalized boxes directly over a `BoxFit.cover`
 preview, which crops one axis — so boxes will not be pixel-aligned with the
 preview until the geometry mappers (`lib/detection/geometry/`) are wired and
-verified on a device. Track this alongside the live camera QA above; details in
-[phase-2c-tflite.md](phase-2c-tflite.md).
+verified on a device. Track this alongside the live camera QA above.
 
 ## Phase 2d device-QA attempt — 2026-05-29 (BLOCKED)
 
@@ -173,8 +172,12 @@ disconnecting, not an app crash.
 - Approved to proceed to dataset/model pipeline.
 - Not approved to enable TFLite by default yet.
 
-Next: see [../model-training/README.md](../model-training/README.md) and
-[phase-2c-tflite.md](phase-2c-tflite.md).
+> **Historical note (Phase 5.0):** the dataset/TFLite "next step" was superseded.
+> The active AI path is now the local Python vision server
+> (`tools/vision_server/`) plus the on-device ML Kit "Object Assist" mode;
+> see [../ai-model-guidelines.md](../ai-model-guidelines.md). The original
+> training docs are preserved under
+> [../archive/model-training/](../archive/model-training/).
 
 ## Phase 3.3 product-completion checks (mock detector still default)
 

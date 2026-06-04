@@ -31,15 +31,42 @@ void main() {
     expect(def.isIgnored, isTrue);
   });
 
-  test('all ignored negative categories are present and ignored', () {
-    const ignored = [
-      'person', 'pet', 'shoe', 'clothes', 'bottle', 'cup', 'furniture',
-      'bed', 'pillow', 'phone', 'remote_control', 'book', 'unknown',
-    ];
+  test('explicitly-ignored categories are present and never count', () {
+    // Phase 6.0 registry slimmed down to what the COCO-80 mapper actually
+    // emits; furniture/shoe/bottle/etc. fall through to `unknown` (which is
+    // also ignored), so they're no longer asserted here. Note: `book` was
+    // moved OUT of this list — it is now a needs-review toy candidate.
+    const ignored = ['person', 'pet', 'furniture', 'not_toy', 'unknown'];
     for (final label in ignored) {
       final def = registry.lookup(label);
       expect(def.isIgnored, isTrue, reason: '$label should be ignored');
       expect(def.countsAsToy, isFalse, reason: '$label must not count');
+    }
+  });
+
+  test('book is now a toy candidate (needs review), not auto-ignored', () {
+    final def = registry.lookup('book');
+    expect(def.countsAsToy, isTrue);
+    expect(def.isIgnored, isFalse);
+  });
+
+  test('Phase 6.0 toy labels are all registered and count as toys', () {
+    const toyLabels = [
+      'stuffed_animal',
+      'ball',
+      'toy_car',
+      'toy_truck',
+      'toy_train',
+      'toy_vehicle',
+      'toy_outdoor',
+      'book',
+      'object',
+    ];
+    for (final label in toyLabels) {
+      expect(registry.isKnown(label), isTrue, reason: '$label must register');
+      final def = registry.lookup(label);
+      expect(def.countsAsToy, isTrue, reason: '$label must count as toy');
+      expect(def.isIgnored, isFalse, reason: '$label must not be ignored');
     }
   });
 }

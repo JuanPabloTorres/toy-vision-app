@@ -1,0 +1,78 @@
+C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py:24: SyntaxWarning: invalid escape sequence '\.'
+  .\.venv\Scripts\Activate.ps1
+[toy-export] loading yolov8s-world (downloads on first run)…
+[toy-export] fixing vocabulary to 20 toy classes…
+[toy-export] exporting to TFLite (this can take a few minutes)…
+Ultralytics 8.4.60  Python-3.13.7 torch-2.12.0+cpu CPU (13th Gen Intel Core i7-13620H)
+WARNING YOLOWorld (original version) export is not supported to any format. YOLOWorldv2 models (i.e. 'yolov8s-worldv2.pt') only support export to (torchscript, onnx, openvino, engine, coreml) formats. See https://docs.ultralytics.com/models/yolo-world for details.
+YOLOv8s-world summary (fused): 100 layers, 13,372,904 parameters, 0 gradients, 44.4 GFLOPs
+
+[34m[1mPyTorch:[0m starting from 'yolov8s-world.pt' with input shape (1, 3, 480, 480) BCHW and output shape(s) (1, 24, 4725) (25.9 MB)
+
+[34m[1mONNX:[0m starting export with onnx 1.21.0 opset 20...
+[34m[1mONNX:[0m slimming with onnxslim 0.1.94...
+[34m[1mONNX:[0m export success  6.3s, saved as 'yolov8s-world.onnx' (50.6 MB)
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780433403.607392   54404 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1780433415.527636   54404 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[31m[1mrequirements:[0m Ultralytics requirement ['onnx2tf>=2.3.0,<2.3.16'] not found, attempting AutoUpdate...
+Resolved 1 package in 1.07s
+Downloading onnx2tf (1.8MiB)
+ Downloaded onnx2tf
+Prepared 1 package in 1.74s
+Installed 1 package in 2.59s
+ + onnx2tf==2.3.15
+
+[31m[1mrequirements:[0m AutoUpdate success  8.2s
+WARNING [31m[1mrequirements:[0m [1mRestart runtime or rerun command for updates to take effect[0m
+
+[31m[1mrequirements:[0m Ultralytics requirements ['tf_keras>2.19.0', 'sng4onnx>=1.0.1', 'onnx_graphsurgeon>=0.3.26', 'ai-edge-litert>=1.2.0', 'onnx2tf>=1.26.3,<1.29.0', 'protobuf>=6.31.1,<7.0.0'] not found, attempting AutoUpdate...
+WARNING Retry 1/2 failed: Command 'uv pip install --no-cache-dir --python "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Scripts\python.exe" "tf_keras>2.19.0" "sng4onnx>=1.0.1" "onnx_graphsurgeon>=0.3.26" "ai-edge-litert>=1.2.0" "onnx2tf>=1.26.3,<1.29.0" "protobuf>=6.31.1,<7.0.0" --extra-index-url https://pypi.ngc.nvidia.com --index-strategy=unsafe-best-match --break-system-packages' returned non-zero exit status 2.
+WARNING Retry 2/2 failed: Command 'uv pip install --no-cache-dir --python "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Scripts\python.exe" "tf_keras>2.19.0" "sng4onnx>=1.0.1" "onnx_graphsurgeon>=0.3.26" "ai-edge-litert>=1.2.0" "onnx2tf>=1.26.3,<1.29.0" "protobuf>=6.31.1,<7.0.0" --extra-index-url https://pypi.ngc.nvidia.com --index-strategy=unsafe-best-match --break-system-packages' returned non-zero exit status 2.
+WARNING [31m[1mrequirements:[0m  Command 'uv pip install --no-cache-dir --python "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Scripts\python.exe" "tf_keras>2.19.0" "sng4onnx>=1.0.1" "onnx_graphsurgeon>=0.3.26" "ai-edge-litert>=1.2.0" "onnx2tf>=1.26.3,<1.29.0" "protobuf>=6.31.1,<7.0.0" --extra-index-url https://pypi.ngc.nvidia.com --index-strategy=unsafe-best-match --break-system-packages' returned non-zero exit status 2.
+Resolved 41 packages in 6.59s
+Downloading ai-edge-litert (16.9MiB)
+Downloading tf-keras (1.6MiB)
+ Downloaded ai-edge-litert
+ Downloaded tf-keras
+Prepared 7 packages in 6.65s
+error: failed to remove file `C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\google/_upb/_message.pyd`: Access is denied. (os error 5)
+
+
+[34m[1mTensorFlow SavedModel:[0m starting export with tensorflow 2.21.0...
+
+[KDownloading https://github.com/ultralytics/assets/releases/download/v8.4.0/calibration_image_sample_data_20x128x128x3_float32.npy.zip to 'calibration_image_sample_data_20x128x128x3_float32.npy.zip': 20% ━━────────── 224.0KB/1.1MB 2.0MB/s 0.1s<0.4s
+[KDownloading https://github.com/ultralytics/assets/releases/download/v8.4.0/calibration_image_sample_data_20x128x128x3_float32.npy.zip to 'calibration_image_sample_data_20x128x128x3_float32.npy.zip': 100% ━━━━━━━━━━━━ 1.1MB 5.7MB/s 0.2s
+
+[KUnzipping calibration_image_sample_data_20x128x128x3_float32.npy.zip to C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\calibration_image_sample_data_20x128x128x3_float32.npy...: 100% ━━━━━━━━━━━━ 1/1 61.8files/s 0.0s
+ERROR [34m[1mTensorFlow SavedModel:[0m export failure 70.1s: No module named 'tf_keras'
+Traceback (most recent call last):
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py", line 121, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\export_toy_model.py", line 85, in main
+    exported = model.export(format="tflite", imgsz=IMG_SIZE)
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\engine\model.py", line 713, in export
+    return Exporter(overrides=args, _callbacks=self.callbacks)(model=self.model)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\engine\exporter.py", line 735, in __call__
+    f, keras_model = self.export_saved_model()
+                     ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\engine\exporter.py", line 391, in outer_func
+    raise e
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\engine\exporter.py", line 383, in outer_func
+    f = inner_func(*args, **kwargs)  # exported file/dir or tuple of (file/dir, *)
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\engine\exporter.py", line 1174, in export_saved_model
+    keras_model = onnx2saved_model(
+        f_onnx,
+    ...<4 lines>...
+        prefix=prefix,
+    )
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\ultralytics\utils\export\tensorflow.py", line 160, in onnx2saved_model
+    import onnx2tf.ops.TopK as _t
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\onnx2tf\__init__.py", line 1, in <module>
+    from onnx2tf.onnx2tf import convert, main
+  File "C:\Users\juanp\source\repos\Toy-Vision\tools\toy_model_export\.venv\Lib\site-packages\onnx2tf\onnx2tf.py", line 78, in <module>
+    import tf_keras
+ModuleNotFoundError: No module named 'tf_keras'
