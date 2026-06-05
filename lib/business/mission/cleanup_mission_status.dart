@@ -66,6 +66,14 @@ enum CleanupMissionStatus {
   /// This is what lets the app finish on its own instead of asking.
   cleanAreaVerification,
 
+  /// The post-pickup sweep SAW the area but the fixed challenge GOAL is not yet
+  /// met (collectedToyCount < targetPickupGoal). The mission must NOT complete
+  /// here — the absolute goal rule overrides "the area looks clean". The robot
+  /// keeps sweeping and tells the child to point at another area; a toy turning
+  /// up resumes the hunt automatically. Only reachable for goal missions, never
+  /// in free/record mode.
+  needsMoreToysForGoal,
+
   /// Re-scan found nothing new. Ask the child "¿Ves otro juguete?".
   askingIfMoreToys,
 
@@ -90,6 +98,7 @@ extension CleanupMissionStatusX on CleanupMissionStatus {
       this == CleanupMissionStatus.confirmingPickup ||
       this == CleanupMissionStatus.rescanning ||
       this == CleanupMissionStatus.cleanAreaVerification ||
+      this == CleanupMissionStatus.needsMoreToysForGoal ||
       this == CleanupMissionStatus.askingIfMoreToys ||
       this == CleanupMissionStatus.waitingForChildTap;
 
@@ -97,7 +106,8 @@ extension CleanupMissionStatusX on CleanupMissionStatus {
   bool get isScanningPhase =>
       this == CleanupMissionStatus.scanning ||
       this == CleanupMissionStatus.rescanning ||
-      this == CleanupMissionStatus.cleanAreaVerification;
+      this == CleanupMissionStatus.cleanAreaVerification ||
+      this == CleanupMissionStatus.needsMoreToysForGoal;
 
   /// There should be a highlighted current target in these states.
   bool get expectsCurrentTarget =>

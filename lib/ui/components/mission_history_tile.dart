@@ -56,7 +56,7 @@ class MissionHistoryTile extends StatelessWidget {
                   _formatTime(record.date),
                   style: AppTypography.missionTitle.copyWith(fontSize: 15),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   '${record.collectedToyCount} de ${record.initialToyCount} '
                   'juguetes · ${record.completed ? "Completada" : "Incompleta"}',

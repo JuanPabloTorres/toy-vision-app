@@ -86,6 +86,28 @@ void main() {
     });
   });
 
+  group('needsMoreToysForGoal (area clean here, goal not met)', () {
+    test('never says "completado"; shows score and sends to another area', () {
+      final m = service.message(
+        missionStatus: CleanupMissionStatus.needsMoreToysForGoal,
+        knownCount: 3,
+        collectedCount: 3,
+        targetPickupGoal: 5,
+      );
+      expect(m, contains('Llevas 3 de 5'));
+      expect(m, contains('otra área'));
+      expect(m.toLowerCase(), isNot(contains('completad')));
+      expect(m.toLowerCase(), isNot(contains('terminaste')));
+    });
+
+    test('free/record mode (no goal) just nudges to another area', () {
+      expect(
+        msg(status: CleanupMissionStatus.needsMoreToysForGoal),
+        'No veo más juguetes aquí. Apunta a otra área para seguir.',
+      );
+    });
+  });
+
   group('completed / error', () {
     test('completed singular', () {
       expect(

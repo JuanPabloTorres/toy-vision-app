@@ -27,7 +27,7 @@ class ModelLoadingView extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             message ??
-                (isError ? 'Detection unavailable' : 'Starting detection…'),
+                (isError ? 'No veo juguetes ahora.' : 'Preparando…'),
             style:
                 textTheme.bodyMedium?.copyWith(color: AppColors.onSurfaceMuted),
           ),

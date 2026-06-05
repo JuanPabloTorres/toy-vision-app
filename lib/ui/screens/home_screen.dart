@@ -201,7 +201,7 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.textBlueDark,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppSpacing.xxs),
               _DayStatusPill(stars: stars),
             ],
           ),

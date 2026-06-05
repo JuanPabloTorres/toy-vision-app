@@ -63,7 +63,7 @@ class MissionCompletePanel extends StatelessWidget {
             AppSpacing.xl,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C2F67).withValues(alpha: 0.96),
+            color: AppColors.panelInkDark.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(AppRadii.xl),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.14),

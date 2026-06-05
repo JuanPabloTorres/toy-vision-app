@@ -31,7 +31,7 @@ class DailyMissionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E6), // warm cream like the mockup
+        color: AppColors.cream, // warm cream like the mockup
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.card,
       ),
@@ -73,7 +73,7 @@ class DailyMissionCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   'Recoge $goal juguetes hoy',
                   style: AppTypography.parentLabel.copyWith(fontSize: 14),

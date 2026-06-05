@@ -218,20 +218,53 @@ void main() {
       expect(s.missionStatus.isScanningPhase, isTrue);
     });
 
-    test('the system finishes by ITSELF once the area is clean long enough '
-        '(no Terminé button)', () {
+    test('a goal challenge does NOT finish on a clean area below the goal — it '
+        'holds in needsMoreToysForGoal (the "completed at 1/3" bug)', () {
       final c = container();
       addTearDown(c.dispose);
-      final ctrl = activeWith(c, goal: MissionGoal.quick, n: 1);
+      final ctrl = activeWith(c, goal: MissionGoal.quick, n: 1); // goal 3
       ctrl.collectCurrentToy(); // 1/3
+      feed(ctrl, [_chair()], 30); // sustained clean — but goal NOT reached
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 1);
+      expect(
+        s.missionStatus,
+        isNot(CleanupMissionStatus.completed),
+        reason: 'a fixed-goal challenge can never complete below the goal',
+      );
+      expect(s.missionStatus, CleanupMissionStatus.needsMoreToysForGoal);
+    });
+
+    test('FREE/record mode DOES finish by itself once the area is clean long '
+        'enough (no fixed goal to gate on)', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, goal: MissionGoal.record, n: 1);
+      ctrl.collectCurrentToy(); // 1 collected, no goal
       feed(ctrl, [_chair()], 30); // sustained clean (≥2 windows) → auto-complete
       final s = c.read(toyCleanupControllerProvider);
       expect(s.collectedToyCount, 1);
       expect(
         s.missionStatus,
         CleanupMissionStatus.completed,
-        reason: 'the system detects the child is done without a button',
+        reason: 'free mode finishes on a verified clean area without a goal',
       );
+    });
+
+    test('once the goal IS reached, a clean area auto-completes promptly', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, goal: MissionGoal.quick, n: 4); // goal 3
+      for (var i = 0; i < 3; i++) {
+        ctrl.collectCurrentToy();
+        if (i < 2) feed(ctrl, nToys(4), 24); // a toy stays visible until 3/3
+      }
+      // 3/3 reached; now the area goes clean → it may finish.
+      feed(ctrl, [_chair()], 30);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 3);
+      expect(s.hasReachedGoal, isTrue);
+      expect(s.missionStatus, CleanupMissionStatus.completed);
     });
 
     test('between toys, pointing at another toy resumes the hunt automatically',
@@ -268,6 +301,136 @@ void main() {
         after,
         reason: 'a collected toy cannot be counted again',
       );
+    });
+  });
+
+  // The reported bug: the mission was declared complete at 1/5 or 3/5. The
+  // ABSOLUTE rule is `missionCompleted = false` while collectedToyCount <
+  // targetPickupGoal, regardless of a clean area, no toys visible, or "Terminé".
+  group('goal gate — completion blocked below the goal (reported bug)', () {
+    var now = DateTime(2026, 6, 5, 12);
+
+    ProviderContainer container() {
+      now = DateTime(2026, 6, 5, 12);
+      return ProviderContainer(
+        overrides: [clockProvider.overrideWithValue(() => now)],
+      );
+    }
+
+    void feed(ToyCleanupController c, List<YOLOResult> frame, int times) {
+      for (var i = 0; i < times; i++) {
+        now = now.add(const Duration(milliseconds: 250));
+        c.ingest(frame);
+      }
+    }
+
+    // [collect] distinct, in-frame toys (≈0.19 apart so tracking never merges).
+    List<YOLOResult> nToys(int n) => [
+          for (var i = 0; i < n; i++)
+            _teddyBear(classIndex: i + 1, x: 0.03 + i * 0.19),
+        ];
+
+    /// Start a [goal] mission, collect [collect] distinct toys, then leave the
+    /// floor clean (a chair = area seen but no valid toy). Returns the
+    /// controller in whatever state the clean sweep settled into.
+    ToyCleanupController collectThenClean(
+      ProviderContainer c, {
+      required MissionGoal goal,
+      required int collect,
+      int cleanFrames = 30,
+    }) {
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission(goal: goal);
+      feed(ctrl, nToys(collect), 34);
+      for (var i = 0; i < collect; i++) {
+        ctrl.collectCurrentToy();
+        if (i < collect - 1) feed(ctrl, nToys(collect), 24);
+      }
+      feed(ctrl, [_chair()], cleanFrames); // area seen + clean
+      return ctrl;
+    }
+
+    test('mission 5: starts at 0/5 and is not completed', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission(goal: MissionGoal.normal);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 0);
+      expect(s.targetPickupGoal, 5);
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+    });
+
+    test('collected 1 / goal 5 + clean area → NOT completed', () {
+      final c = container();
+      addTearDown(c.dispose);
+      collectThenClean(c, goal: MissionGoal.normal, collect: 1);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 1);
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+      expect(s.missionStatus, CleanupMissionStatus.needsMoreToysForGoal);
+    });
+
+    test('collected 3 / goal 5 + clean area → NOT completed', () {
+      final c = container();
+      addTearDown(c.dispose);
+      collectThenClean(c, goal: MissionGoal.normal, collect: 3);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 3);
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+      expect(s.missionStatus, CleanupMissionStatus.needsMoreToysForGoal);
+    });
+
+    test('collected 5 / goal 5 + clean area → completed', () {
+      final c = container();
+      addTearDown(c.dispose);
+      collectThenClean(c, goal: MissionGoal.normal, collect: 5);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 5);
+      expect(s.hasReachedGoal, isTrue);
+      expect(s.missionStatus, CleanupMissionStatus.completed);
+      // Saved as a completed run.
+      final history = c.read(missionHistoryProvider);
+      expect(history, hasLength(1));
+      expect(history.single.completed, isTrue);
+      expect(history.single.collectedToyCount, 5);
+    });
+
+    test('no more toys visible but goal not met → needsMoreToysForGoal', () {
+      final c = container();
+      addTearDown(c.dispose);
+      collectThenClean(c, goal: MissionGoal.normal, collect: 2);
+      expect(
+        c.read(toyCleanupControllerProvider).missionStatus,
+        CleanupMissionStatus.needsMoreToysForGoal,
+      );
+    });
+
+    test('pressing Terminé at 3/5 does NOT complete and saves nothing', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = collectThenClean(c, goal: MissionGoal.normal, collect: 3);
+      ctrl.childDone(); // explicit finish below the goal
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 3);
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+      expect(
+        c.read(missionHistoryProvider),
+        isEmpty,
+        reason: 'a 3/5 mission must never be saved as completed',
+      );
+    });
+
+    test('record/free mode finishes by itself on a clean area (no goal gate)',
+        () {
+      final c = container();
+      addTearDown(c.dispose);
+      collectThenClean(c, goal: MissionGoal.record, collect: 2);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 2);
+      expect(s.missionStatus, CleanupMissionStatus.completed);
     });
   });
 }

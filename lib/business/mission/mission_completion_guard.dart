@@ -52,6 +52,19 @@ class MissionCompletionEvidence {
   final int greenOverlayDetectionCount;
 }
 
+/// Why a completion attempt was refused.
+///
+/// [goalNotReached] is the ABSOLUTE rule: a fixed-goal challenge can never be
+/// marked complete with fewer than `targetPickupGoal` pickups, no matter how
+/// clean or empty the area looks, who pressed "Terminé", or that nothing is
+/// detected. [areaNotVerified] is the softer "haven't confirmed a clean area
+/// yet" reason. [none] means a completion attempt is allowed to proceed.
+enum MissionCompletionBlockedReason {
+  none,
+  goalNotReached,
+  areaNotVerified,
+}
+
 /// Centralizes mission safety decisions so the controller only orchestrates
 /// state transitions. The guard is intentionally conservative: uncertainty
 /// keeps the mission alive instead of pretending a pickup or clean area.
@@ -96,4 +109,39 @@ class MissionCompletionGuard {
     if (evidence.sawOnlyRawNonToyDetections) return false;
     return evidence.sceneStability == SceneStabilityStatus.stable;
   }
+
+  /// The ABSOLUTE goal gate, independent of any area/clean evidence: a
+  /// fixed-goal challenge can never be marked complete while [collectedToyCount]
+  /// < [targetPickupGoal]. Returns [MissionCompletionBlockedReason.goalNotReached]
+  /// while that holds, else [MissionCompletionBlockedReason.none] (goal met, or
+  /// free/record mode where [targetPickupGoal] is `null`). This is the single
+  /// rule that fixes the "completed at 1/5 or 3/5" bug.
+  MissionCompletionBlockedReason goalCompletionBlock({
+    required int collectedToyCount,
+    required int? targetPickupGoal,
+  }) {
+    if (targetPickupGoal == null) return MissionCompletionBlockedReason.none;
+    if (collectedToyCount < targetPickupGoal) {
+      return MissionCompletionBlockedReason.goalNotReached;
+    }
+    return MissionCompletionBlockedReason.none;
+  }
+
+  /// A fixed-goal challenge may complete ONLY when the goal is reached AND the
+  /// clean-area [evidence] allows closing. The goal check comes first and can
+  /// never be overridden by a clean/empty area (the reported bug).
+  bool canCompleteGoalMission({
+    required int collectedToyCount,
+    required int targetPickupGoal,
+    required MissionCompletionEvidence evidence,
+  }) {
+    if (collectedToyCount < targetPickupGoal) return false;
+    return canCompleteMission(evidence);
+  }
+
+  /// A free/record mission has no fixed goal, so completion is driven purely by
+  /// the clean-area [evidence] (the caller also enforces the child's finish
+  /// intent / sustained-clean window).
+  bool canCompleteRecordMission(MissionCompletionEvidence evidence) =>
+      canCompleteMission(evidence);
 }

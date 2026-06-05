@@ -20,11 +20,41 @@ class AppColors {
   static const Color cardWhite = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFF6B7280);
 
+  // Brand tints used by gradients/soft panels. Named here so the same warm
+  // and sky shades stop reappearing as raw hex literals across screens.
+  static const Color missionYellowLight = Color(0xFFFFD658); // sunny gradient top
+  static const Color skyLight = Color(0xFFBFE3FF); // splash gradient top
+  static const Color cream = Color(0xFFFFF7E6); // warm card fill (daily mission)
+  static const Color panelInkDark = Color(0xFF1C2F67); // celebration panel
+
   // --- Semantic roles ---
+  // These are the names the design system reaches for. They are aliases over
+  // the brand palette above, so the rendered colors never change — they just
+  // give widgets a role-based name instead of a literal hue, and a single
+  // place to retune later. Prefer these in new/migrated UI.
   static const Color seed = primaryBlue;
+  static const Color background = bgLight;
   static const Color surface = bgLight;
+  static const Color surfaceCard = cardWhite;
+  static const Color surfaceSoft = Color(0xFFEAF4FF); // soft blue-tinted panel
+  static const Color primary = primaryBlue;
+  static const Color primaryDark = textBlueDark;
+  static const Color accent = missionYellow;
+  static const Color success = progressGreen;
+  static const Color warning = gameOrange;
+  static const Color danger = stopRed;
   static const Color onSurface = textBlueDark;
   static const Color onSurfaceMuted = textSecondary;
+  static const Color textPrimary = textBlueDark;
+  // Bright highlight used to make a child-facing element "pop" (selected
+  // challenge card, new-record badge, basket when the goal is reached).
+  static const Color childFriendlyHighlight = missionYellow;
+  // Neutral hairline border for cards/dividers on light surfaces.
+  static const Color hairline = Color(0x14123B7A); // ~8% brand blue
+  // Soft drop-shadow ink used by buttons/cards (replaces scattered
+  // Color(0x..000000) literals).
+  static const Color shadowSoft = Color(0x14000000);
+  static const Color shadowMedium = Color(0x28000000);
 
   // --- Game accents (mapped to the spec palette) ---
   static const Color gameBlue = primaryBlue;

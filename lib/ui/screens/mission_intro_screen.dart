@@ -5,14 +5,15 @@ import '../../business/app_audio_service.dart';
 import '../../business/mission/mission_goal.dart';
 import '../../camera/controllers/toy_cleanup_controller.dart';
 import '../app_assets.dart';
+import '../components/app_back_button.dart';
 import '../components/app_image.dart';
 import '../components/app_playful_icon.dart';
+import '../components/challenge_card.dart';
 import '../components/primary_action_button.dart';
 import '../components/robot_welcome.dart';
 import '../navigation/app_bottom_navigation.dart';
 import '../navigation/app_shell.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_radii.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -49,9 +50,8 @@ class MissionIntroScreen extends ConsumerWidget {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: _RoundButton(
-                      icon: Icons.arrow_back_rounded,
-                      onTap: () {
+                    child: AppBackButton(
+                      onPressed: () {
                         ref.read(appAudioServiceProvider).playButtonTap();
                         Navigator.of(context).maybePop();
                       },
@@ -88,8 +88,12 @@ class MissionIntroScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             for (final goal in MissionGoal.all) ...[
-                              _ChallengeCard(
-                                goal: goal,
+                              ChallengeCard(
+                                title: goal.title,
+                                subtitle: goal.startMessage,
+                                badge: goal.targetPickupGoal == null
+                                    ? '∞'
+                                    : '${goal.targetPickupGoal}',
                                 selected: ref
                                         .watch(selectedMissionGoalProvider)
                                         .challenge ==
@@ -147,109 +151,5 @@ class MissionIntroScreen extends ConsumerWidget {
 final selectedMissionGoalProvider =
     StateProvider<MissionGoal>((ref) => MissionGoal.defaultGoal);
 
-/// A selectable challenge card: title, kid-facing target, and a basket badge.
-/// Highlighted when it is the current selection.
-class _ChallengeCard extends StatelessWidget {
-  const _ChallengeCard({
-    required this.goal,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final MissionGoal goal;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final target = goal.targetPickupGoal;
-    final badge = target == null ? '∞' : '$target';
-    return Material(
-      color: selected ? AppColors.missionYellow : AppColors.cardWhite,
-      borderRadius: BorderRadius.circular(AppRadii.lg),
-      elevation: selected ? 4 : 1,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected ? Colors.white : AppColors.missionYellow,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: selected
-                        ? AppColors.missionYellow
-                        : Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      goal.title,
-                      style: AppTypography.missionTitle.copyWith(
-                        fontSize: 18,
-                        color: selected
-                            ? Colors.white
-                            : AppColors.textBlueDark,
-                      ),
-                    ),
-                    Text(
-                      goal.startMessage,
-                      style: AppTypography.coachMessage.copyWith(
-                        fontSize: 13,
-                        color: selected
-                            ? Colors.white
-                            : AppColors.textBlueDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (selected)
-                const Icon(Icons.check_circle_rounded, color: Colors.white),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.cardWhite,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Icon(icon, color: AppColors.textBlueDark, size: 24),
-        ),
-      ),
-    );
-  }
-}
+/// (The selectable challenge card now lives in the reusable
+/// [ChallengeCard] component, and the back control in [AppBackButton].)

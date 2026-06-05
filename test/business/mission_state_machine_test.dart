@@ -182,8 +182,10 @@ void main() {
       final ctrl = c.read(toyCleanupControllerProvider.notifier);
       ctrl.markModelReady();
       ctrl.startMission();
-      // A few frames into the scan window (not enough to finish it).
-      feed(ctrl, [_teddyBear(x: 0.3), _teddyBear(classIndex: 2, x: 0.7)], 6);
+      // A SINGLE frame — before the candidate has stabilized
+      // (_minCandidateFrames), so the one-pass gate has not selected yet. The
+      // child must already see boxes while the robot is still scanning.
+      feed(ctrl, [_teddyBear(x: 0.3), _teddyBear(classIndex: 2, x: 0.7)], 1);
       final s = c.read(toyCleanupControllerProvider);
       expect(s.missionStatus, CleanupMissionStatus.scanning);
       expect(
@@ -191,6 +193,22 @@ void main() {
         isNotEmpty,
         reason: 'The child must see boxes while the robot is scanning.',
       );
+    });
+
+    test('ONE-PASS: a stable candidate is selected the instant it appears '
+        '(no waiting out the scan window)', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission();
+      // Just _minCandidateFrames frames of a clearly-visible toy — far fewer
+      // than the ~20 frames the old 5s scan window took — must already lock a
+      // target. Detect and select happen in the same pass.
+      feed(ctrl, [_teddyBear(x: 0.4)], 2);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.missionStatus, CleanupMissionStatus.active);
+      expect(s.currentTargetToyId, isNotNull);
     });
   });
 
@@ -437,40 +455,75 @@ void main() {
     });
   });
 
-  group('target switching (follow the child to another toy)', () {
-    test('target lost + a NEW toy in view → switches, old stays pending', () {
+  group('hard target lock (the locked toy is never stolen)', () {
+    test('a nearer, HIGHER-confidence toy never steals the locked target while '
+        'it is still in view', () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = c.read(toyCleanupControllerProvider.notifier);
       ctrl.markModelReady();
       ctrl.startMission();
-      // Only toy_001 in the initial scan.
+      // Lock onto an off-center toy_001.
+      feed(ctrl, [_teddyBear(classIndex: 1, x: 0.05)], 34);
+      final original = c.read(toyCleanupControllerProvider).currentTargetToyId;
+      expect(original, isNotNull);
+
+      // A dead-center, MAX-confidence toy_002 shows up next to it. By the
+      // scorer's own rules it would outscore toy_001 — but the hard lock means
+      // a toy that is merely "better" never re-points the highlight.
+      feed(
+        ctrl,
+        [
+          _teddyBear(classIndex: 1, x: 0.05),
+          _teddyBear(classIndex: 2, x: 0.35, confidence: 0.99),
+        ],
+        12,
+      );
+      final s = c.read(toyCleanupControllerProvider);
+      expect(
+        s.currentTargetToyId,
+        original,
+        reason: 'a better toy appearing must not switch the locked target',
+      );
+      expect(s.collectedToyCount, 0);
+    });
+
+    test('only AFTER the locked toy is gone past the deadline does a pan '
+        're-lock the visible toy (old stays pending, never counted)', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission();
       feed(ctrl, [_teddyBear(classIndex: 1, x: 0.12)], 34);
       final original = c.read(toyCleanupControllerProvider).currentTargetToyId;
       expect(original, isNotNull);
-      expect(c.read(toyCleanupControllerProvider).knownToyCount, 1);
-      // A few active frames (toy_001 is the target; no other anchors).
       feed(ctrl, [_teddyBear(classIndex: 1, x: 0.12)], 3);
 
-      // Child pans to a DIFFERENT area: toy_001 leaves, toy_002 (new) appears.
-      feed(ctrl, [_teddyBear(classIndex: 2, x: 0.70)], 14);
+      // Pan to a DIFFERENT toy briefly (under the re-scan deadline): the lock
+      // holds — toy_001 is still the target even though it is off-screen.
+      feed(ctrl, [_teddyBear(classIndex: 2, x: 0.70)], 10);
+      expect(
+        c.read(toyCleanupControllerProvider).currentTargetToyId,
+        original,
+        reason: 'a brief loss does not release the lock',
+      );
 
+      // Keep panned past the deadline: now the lost toy is invalidated by the
+      // camera move and the one-pass re-scan locks the toy in view instead.
+      feed(ctrl, [_teddyBear(classIndex: 2, x: 0.70)], 24);
       final s = c.read(toyCleanupControllerProvider);
       expect(
         s.currentTargetToyId,
         isNot(original),
-        reason: 'the new visible toy becomes the target',
+        reason: 'after the lock is truly gone, re-lock the visible toy',
       );
       expect(
         s.collectedToyCount,
         0,
-        reason: 'the old target is NOT collected, just pending',
+        reason: 'a camera pan is never read as a pickup',
       );
-      expect(
-        s.knownToyCount,
-        2,
-        reason: 'old kept pending + new toy added (no completion)',
-      );
+      expect(s.knownToyCount, 2, reason: 'old kept pending + new toy added');
       expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
     });
 
@@ -484,15 +537,15 @@ void main() {
       final original = c.read(toyCleanupControllerProvider).currentTargetToyId;
       feed(ctrl, [_teddyBear(classIndex: 1, x: 0.12)], 3);
 
-      // Switch to toy_002…
-      feed(ctrl, [_teddyBear(classIndex: 2, x: 0.70)], 14);
+      // Pan to toy_002 past the deadline → re-lock toy_002.
+      feed(ctrl, [_teddyBear(classIndex: 2, x: 0.70)], 30);
       expect(
         c.read(toyCleanupControllerProvider).currentTargetToyId,
         isNot(original),
       );
 
-      // …then pan back to the original toy.
-      feed(ctrl, [_teddyBear(classIndex: 1, x: 0.12)], 14);
+      // …then pan back to the original toy, again past the deadline.
+      feed(ctrl, [_teddyBear(classIndex: 1, x: 0.12)], 30);
       final s = c.read(toyCleanupControllerProvider);
       expect(
         s.currentTargetToyId,
@@ -518,8 +571,9 @@ void main() {
         CleanupMissionStatus.cleanAreaVerification,
       );
 
-      // The sweep settles on the toy that is still pending — a different one.
-      feed(ctrl, [_teddyBear(x: 0.6)], 24);
+      // The sweep settles on the toy that is still pending — the OTHER toy from
+      // the initial scan (the one the scorer did not lock first), still in view.
+      feed(ctrl, [_teddyBear(classIndex: 1, x: 0.15)], 24);
       final s = c.read(toyCleanupControllerProvider);
       expect(s.collectedToyCount, 1);
       expect(s.missionStatus, CleanupMissionStatus.active);
@@ -706,9 +760,11 @@ void main() {
       );
 
       // Re-exhaust to get back to the fallback, then use the tap last resort.
+      // Free/record mode so the single tapped pickup can auto-finish on a clean
+      // area (a fixed-goal challenge would correctly refuse to complete at 1).
       ctrl.resetMission();
       ctrl.markModelReady();
-      ctrl.startMission();
+      ctrl.startMission(goal: MissionGoal.record);
       feed(ctrl, const [], 140);
       expect(
         c.read(toyCleanupControllerProvider).missionStatus,

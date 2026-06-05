@@ -111,7 +111,7 @@ class _Background extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFBFE3FF), AppColors.bgLight],
+          colors: [AppColors.skyLight, AppColors.bgLight],
         ),
       ),
       child: _MaybeBackgroundImage(child: child),

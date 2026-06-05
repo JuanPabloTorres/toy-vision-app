@@ -16,7 +16,7 @@ class EmptyDetectionHint extends StatelessWidget {
           const Icon(Icons.center_focus_weak, color: AppColors.onSurfaceMuted),
           const SizedBox(width: AppSpacing.sm),
           Text(
-            'Point the camera at the toys',
+            'Apunta la cámara a los juguetes.',
             style: Theme.of(context)
                 .textTheme
                 .bodyMedium

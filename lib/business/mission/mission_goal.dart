@@ -35,6 +35,11 @@ class MissionGoal {
   /// Free mode has no fixed target — every pickup is already a record attempt.
   bool get isRecordMode => targetPickupGoal == null;
 
+  /// A fixed-goal challenge (quick / normal / súper): completion is GATED on
+  /// reaching [targetPickupGoal]. False only in free/record mode. The mirror of
+  /// [isRecordMode], named for the completion rule it guards.
+  bool get isGoalMission => targetPickupGoal != null;
+
   /// Whether [collected] pickups have reached the challenge goal. Always false
   /// in free mode (there is no goal to reach — only a record to beat).
   bool hasReachedGoalAt(int collected) {

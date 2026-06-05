@@ -91,4 +91,56 @@ class AppTypography {
     fontWeight: FontWeight.w700,
     color: AppColors.onSurface,
   );
+
+  // --- General-purpose roles ---
+  // Added so screens stop hand-tuning sizes with `.copyWith(fontSize: …)`.
+  // Use these for greetings, card titles, body copy and captions.
+
+  /// Friendly screen greeting / section heading ("¡Hola, explorador!").
+  static const TextStyle heading = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w800,
+    color: AppColors.onSurface,
+    height: 1.15,
+  );
+
+  /// Card / tile title ("Recoge 3 juguetes hoy").
+  static const TextStyle cardTitle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    color: AppColors.onSurface,
+    height: 1.2,
+  );
+
+  /// Standard body copy.
+  static const TextStyle body = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: AppColors.onSurface,
+    height: 1.3,
+  );
+
+  /// Emphasized body copy.
+  static const TextStyle bodyStrong = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    color: AppColors.onSurface,
+    height: 1.3,
+  );
+
+  /// Small caption / supporting label.
+  static const TextStyle caption = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: AppColors.onSurfaceMuted,
+    height: 1.2,
+  );
+
+  /// Oversized celebratory number (progress dashboard total).
+  static const TextStyle displayNumber = TextStyle(
+    fontSize: 44,
+    fontWeight: FontWeight.w900,
+    color: AppColors.onSurface,
+    height: 1.0,
+  );
 }

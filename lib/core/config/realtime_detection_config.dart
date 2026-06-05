@@ -24,9 +24,6 @@ class RealtimeDetectionConfig {
         const Duration(milliseconds: 800),
     this.autoCollectEvaluatingFrames = 4,
     this.cleanAreaVerificationDuration = const Duration(milliseconds: 3000),
-    this.allowTargetSwitchWhenNewValidToyVisible = true,
-    this.minFramesBeforeTargetSwitch = 10,
-    this.minSecondsBeforeTargetSwitch = const Duration(milliseconds: 1000),
   });
 
   /// Frames a tracked toy must be seen before it is counted.
@@ -79,19 +76,6 @@ class RealtimeDetectionConfig {
   /// auto-completing the mission. 2–4 s feels like a deliberate double-check
   /// without dragging.
   final Duration cleanAreaVerificationDuration;
-
-  /// When the active target is lost and a DIFFERENT, new valid toy is visible,
-  /// switch to it (the old toy stays pending) instead of staying stuck. Lets
-  /// the robot follow the child to another area.
-  final bool allowTargetSwitchWhenNewValidToyVisible;
-
-  /// Consecutive frames the active target must be unseen before the robot may
-  /// switch to a new visible toy. Short enough to feel responsive, long enough
-  /// that a one-frame blip never re-points the highlight.
-  final int minFramesBeforeTargetSwitch;
-
-  /// Wall-clock guard mirroring [minFramesBeforeTargetSwitch] (FPS-independent).
-  final Duration minSecondsBeforeTargetSwitch;
 
   /// Target inference rate (frames processed per second). Range 5–10.
   final int targetInferenceFps;

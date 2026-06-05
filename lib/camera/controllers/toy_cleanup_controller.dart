@@ -12,6 +12,7 @@ import '../../business/mission/mission_goal.dart';
 import '../../business/mission/mission_state_machine.dart';
 import '../../business/mission/scene_stability_service.dart';
 import '../../business/mission/mission_vision_snapshot.dart';
+import '../../business/mission/one_pass_toy_selection_service.dart';
 import '../../business/mission/toy_candidate_fusion_service.dart';
 import '../../business/mission/toy_mission_item.dart';
 import '../../business/toy_category_registry.dart';
@@ -53,6 +54,7 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
   late final ToyCountingService _counter;
   late final CleanupGuidanceService _guidance;
   late final ToyCandidateFusionService _fusion;
+  late final OnePassToySelectionService _selector;
   late final SceneStabilityService _sceneStability;
   late final MissionCompletionGuard _completionGuard;
   late final MissionStateMachine _missionStateMachine;
@@ -127,6 +129,10 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
   int _scanAttempts = 0;
   bool _rescanFromAsk = false;
   Set<int> _lastVisibleIds = const {};
+  /// The visible tracked toys this frame (with boxes). Lets selection match a
+  /// known toy to its live track by PROXIMITY, not just its (possibly re-issued)
+  /// id — a toy that left the frame and returned gets a fresh tracker id.
+  List<TrackedToy> _lastVisibleToys = const [];
   DateTime? _scanStartedAt; // wall-clock start of the current scan window
   int _rawTotal = 0; // accumulated over the current window (diagnostics)
   int _mappedTotal = 0;
@@ -205,6 +211,7 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     _counter = ToyCountingService(config: _config);
     _guidance = const CleanupGuidanceService();
     _fusion = ToyCandidateFusionService();
+    _selector = const OnePassToySelectionService();
     _sceneStability = SceneStabilityService();
     _completionGuard = const MissionCompletionGuard();
     _missionStateMachine = const MissionStateMachine();
@@ -256,6 +263,10 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
         if (t.isVisible) t.id,
     };
     _lastVisibleIds = visibleIds;
+    _lastVisibleToys = [
+      for (final t in tracked)
+        if (t.isVisible) t,
+    ];
 
     // ONE per-frame vision snapshot — the single source of truth the overlay
     // and the completion guard both read, so "green box painted" and "area
@@ -270,6 +281,15 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       pendingPickupTargetId: _pendingVerificationTargetId,
       sceneStability: _lastSceneStability?.status,
     );
+
+    // ONE-PASS proof: detect + select share this frame. raw → visibleToys →
+    // greenOverlay → activeTarget, all from the single snapshot above.
+    if (kDebugMode && _frame % 20 == 0) {
+      debugPrint('[SNAPSHOT] raw=${yoloResults.length} '
+          'visibleToys=${visibleIds.length} '
+          'greenOverlay=${_lastVisionSnapshot.greenOverlayCount} '
+          'activeTarget=${_currentTargetId != null ? _fmtId(_currentTargetId!) : 'null'}');
+    }
 
     // --- YOLO diagnostic (debug only, throttled) ---
     // The single line that answers "is YOLO running, and what does it see?":
@@ -301,7 +321,8 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     final status = state.missionStatus;
     if (status != CleanupMissionStatus.scanning &&
         status != CleanupMissionStatus.rescanning &&
-        status != CleanupMissionStatus.cleanAreaVerification) {
+        status != CleanupMissionStatus.cleanAreaVerification &&
+        status != CleanupMissionStatus.needsMoreToysForGoal) {
       if (status == CleanupMissionStatus.active ||
           status == CleanupMissionStatus.targetLost) {
         // rawCount = how many objects YOLO saw this frame (toy or not). A
@@ -362,15 +383,26 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     // at least a couple of frames of data before resolving.
     final window = switch (status) {
       CleanupMissionStatus.scanning => _config.initialScanDuration,
-      CleanupMissionStatus.cleanAreaVerification =>
+      CleanupMissionStatus.cleanAreaVerification ||
+      CleanupMissionStatus.needsMoreToysForGoal =>
         _config.cleanAreaVerificationDuration,
       _ => _config.rescanDuration,
     };
+    // ONE-PASS detect + select: resolve the SAME instant a stable candidate
+    // exists — don't wait out the full scan window just to select a toy the
+    // camera already sees. This collapses the old ~5 s start delay and ~3 s
+    // between-toy gap into the [_minCandidateFrames] needed to trust a sighting
+    // ("lo vi, este es, recógelo"). The window timeout still applies to the
+    // NO-candidate path, so "area clean / fall back to tap" keeps its patience
+    // and a single empty frame never ends or stalls the mission.
+    final readyToResolve = _scanFrames >= _minCandidateFrames &&
+        (_hasStableCandidate() || elapsed >= window);
     var next = status;
-    if (_scanFrames >= _minCandidateFrames && elapsed >= window) {
+    if (readyToResolve) {
       next = switch (status) {
         CleanupMissionStatus.scanning => _finishScan(),
-        CleanupMissionStatus.cleanAreaVerification =>
+        CleanupMissionStatus.cleanAreaVerification ||
+        CleanupMissionStatus.needsMoreToysForGoal =>
           _finishCleanAreaVerification(),
         _ => _finishRescan(),
       };
@@ -432,6 +464,29 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     return '¡Bien! Busca otro juguete.';
   }
 
+  /// Coach line for the [CleanupMissionStatus.needsMoreToysForGoal] hold: the
+  /// area HERE looks clean but the challenge goal isn't met — never "completado";
+  /// show the score and send the child to another area.
+  String _needsMoreToysMessage() {
+    final goal = _goal.targetPickupGoal;
+    final collected = _collectedCount();
+    if (goal != null) {
+      return 'Llevas $collected de $goal. No veo más juguetes aquí. '
+          'Apunta a otra área para seguir.';
+    }
+    return 'No veo más juguetes aquí. Apunta a otra área para seguir.';
+  }
+
+  /// Coach line when the child taps "Terminé" before reaching the goal — never
+  /// "misión completada"; show the score and how many pickups are still missing.
+  String _goalNotReachedFinishMessage(int collected) {
+    final goal = _goal.targetPickupGoal;
+    if (goal == null) return 'Todavía no terminas.';
+    final left = (goal - collected).clamp(0, goal);
+    final falta = left == 1 ? 'Te falta 1' : 'Te faltan $left';
+    return 'Todavía no completas el reto. Llevas $collected de $goal. $falta.';
+  }
+
   /// Reached at the end of a search window when there is NO pending
   /// (uncollected) toy to guide to. The mission stays FULLY automatic — no
   /// "¿Ves otro?" buttons — and the SYSTEM decides the child is done: it
@@ -445,9 +500,10 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
   /// never ends on a single momentary empty view ("finished at 1/3").
   CleanupMissionStatus _keepSearchingOrComplete() {
     // Record the guard's "is the visible area clean?" verdict for diagnostics
-    // only — it no longer gates completion (a toy the child already collected
-    // but is still holding in frame must NOT keep the mission alive; that was
-    // the "reached 3/3 but never finishes" bug).
+    // only — clean-area alone neither completes a mission (a held collected toy
+    // must not keep it alive; the "3/3 never finishes" bug) NOR finishes a goal
+    // challenge early (the "completed at 1/5" bug). The goal gate below is the
+    // authority on completion.
     final evidence = _completionEvidence();
     _recordCompletionGuardDecision(
       _completionGuard.canCompleteMission(evidence),
@@ -455,7 +511,7 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     );
     // We only get here when there is no PENDING (uncollected) toy to guide to.
     // Require that the camera actually SAW the area this window (raw>0): a
-    // blank/covered view is ambiguous and must never auto-complete — it just
+    // blank/covered view is ambiguous and must never decide anything — it just
     // keeps looking. Collected toys still in frame DO satisfy "saw the area".
     if (_rawTotal <= 0) {
       _pendingMessage = 'Mueve la cámara para buscar más juguetes.';
@@ -466,33 +522,61 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       _startScanWindow();
       return CleanupMissionStatus.cleanAreaVerification;
     }
+
+    // The area was seen and there is no toy to guide to right now. Confirm any
+    // pending pickup the clean area just proved BEFORE judging the goal, so a
+    // just-verified +1 counts toward it.
+    _confirmPendingCollection();
+    final collected = _collectedCount();
+
+    // ABSOLUTE RULE: a fixed-goal challenge can NEVER complete while
+    // collected < goal — not on a clean area, not on "no toys visible". Hold in
+    // needsMoreToysForGoal, tell the child to point at another area, and keep
+    // sweeping (a toy elsewhere resumes the hunt automatically).
+    if (_completionGuard.goalCompletionBlock(
+          collectedToyCount: collected,
+          targetPickupGoal: _goal.targetPickupGoal,
+        ) ==
+        MissionCompletionBlockedReason.goalNotReached) {
+      _cleanAreaSweeps = 0; // this path never accrues toward completion
+      _lastGuardDecision = 'completionBlocked';
+      _lastGuardReason = 'goalNotReached';
+      _lastCompletedAllowed = false;
+      _pendingMessage = _needsMoreToysMessage();
+      _pendingMessageFrames = _pendingMessageDuration;
+      if (kDebugMode) {
+        debugPrint('[Mission] Area clean but goal NOT reached '
+            '($collected/${_goal.targetPickupGoal}) → needsMoreToysForGoal');
+      }
+      _startScanWindow();
+      return CleanupMissionStatus.needsMoreToysForGoal;
+    }
+
+    // Goal reached, or free/record mode: the clean area is now allowed to finish
+    // the mission. Goal reached → finish promptly (one window); record mode →
+    // wait a couple of windows so a momentary empty view never ends a free run
+    // early ("finished at 1").
     _cleanAreaSweeps += 1;
-    // Once the challenge goal is met, finish promptly (one empty window); while
-    // still chasing the goal, wait a couple of windows so a single momentary
-    // empty view never ends the mission early ("finished at 1/3").
-    final goalReached = _goal.hasReachedGoalAt(_collectedCount());
+    final goalReached = _goal.hasReachedGoalAt(collected);
     final needed = goalReached ? 1 : _requiredCleanSweeps;
     if (_cleanAreaSweeps >= needed) {
-      _confirmPendingCollection();
       _advanceMissionFlow(
         MissionFlowEvent.missionCompleted,
         guardApproved: true,
       );
       _visuallyVerified = true;
       if (kDebugMode) {
-        debugPrint('[Mission] No more toys for $_cleanAreaSweeps/$needed sweeps '
-            '(goalReached=$goalReached) → auto-complete '
-            'collected=${_collectedCount()}');
+        debugPrint('[Mission] Area clean for $_cleanAreaSweeps/$needed sweeps '
+            '(goalReached=$goalReached) → auto-complete collected=$collected');
       }
       return _completeMission();
     }
     // Saw the area, no toy to collect, but not long enough yet → keep hunting.
-    _confirmPendingCollection();
     _pendingMessage = _findNextToyMessage();
     _pendingMessageFrames = _pendingMessageDuration;
     if (kDebugMode) {
-      debugPrint('[Mission] No pending toy, area seen ($_cleanAreaSweeps/$needed)'
-          ' → keep searching');
+      debugPrint('[Mission] Area seen, no toy ($_cleanAreaSweeps/$needed) '
+          '→ keep searching');
     }
     _startScanWindow();
     return CleanupMissionStatus.cleanAreaVerification;
@@ -654,6 +738,12 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     return _fusion.stableCandidates(minFrames: 1);
   }
 
+  /// Whether the current scan window has already seen a toy on enough frames to
+  /// be trusted. The one-pass gate uses this to select the instant a candidate
+  /// is stable instead of waiting out the rest of the window.
+  bool _hasStableCandidate() =>
+      _fusion.stableCandidates(minFrames: _minCandidateFrames).isNotEmpty;
+
   /// Merge stable candidates into the living known-toy list, deduping
   /// against toys we already know (and never reviving a collected one).
   void _absorbCandidates(List<ToyCandidate> candidates) {
@@ -704,6 +794,26 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     return (dx * dx + dy * dy) < 0.025;
   }
 
+  /// Whether known toy [k] is on screen THIS frame. Matched to a live visible
+  /// track by stable id OR proximity: a toy that left the frame for a while is
+  /// given a NEW tracker id when it returns, so the id alone would wrongly read
+  /// it as "not visible" — the proximity fallback recovers it.
+  bool _seenNow(ToyMissionItem k) {
+    for (final t in _lastVisibleToys) {
+      if (t.id == k.toyId || _near(t.box, k.box)) return true;
+    }
+    return false;
+  }
+
+  /// The live track id to follow for known toy [k] right now (id or proximity
+  /// match), falling back to its stable [ToyMissionItem.toyId] when it is not
+  /// visible. Keeps the highlight glued to the CURRENT track after a re-issue.
+  int _liveTrackIdFor(ToyMissionItem k) {
+    for (final t in _lastVisibleToys) {
+      if (t.id == k.toyId || _near(t.box, k.box)) return t.id;
+    }
+    return k.toyId;
+  }
   // ----------------------------------------------------------------
   // Target selection / maintenance
   // ----------------------------------------------------------------
@@ -719,27 +829,49 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     // makes the robot chase a "ghost" that isn't there — which would otherwise
     // either falsely auto-collect or loop forever instead of completing.
     if (requireVisible) {
-      pending = pending.where((k) => visibleIds.contains(k.toyId)).toList();
+      pending = pending.where(_seenNow).toList();
     }
     if (pending.isEmpty) {
       _currentTargetId = null;
       return false;
     }
-    pending.sort((a, b) {
-      final av = visibleIds.contains(a.toyId) ? 0 : 1;
-      final bv = visibleIds.contains(b.toyId) ? 0 : 1;
-      if (av != bv) return av - bv;
-      return a.orderIndex.compareTo(b.orderIndex);
-    });
+    // One-pass selection: among the toys the camera SEES right now, lock onto
+    // the best one by the scorer (confidence first, center proximity breaks
+    // ties — spec #6). Only if nothing pending is visible do we fall back to
+    // reading order over the remaining known toys.
+    final visiblePending = pending.where(_seenNow).toList();
+    final ToyMissionItem chosen;
+    final ToySelectionReason selectionReason;
+    if (visiblePending.isNotEmpty) {
+      final decision = _selector.selectBest([
+        for (final k in visiblePending)
+          ToySelectionCandidate(
+            id: k.toyId,
+            confidence: k.confidence,
+            box: k.box,
+            framesSeen: _minCandidateFrames,
+          ),
+      ]);
+      chosen = decision.selectedId != null
+          ? visiblePending.firstWhere(
+              (k) => k.toyId == decision.selectedId,
+              orElse: () => visiblePending.first,
+            )
+          : visiblePending.first;
+      selectionReason = decision.reason;
+    } else {
+      pending.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      chosen = pending.first;
+      selectionReason = ToySelectionReason.none;
+    }
     for (final k in _known) {
       if (k.status == ToyItemStatus.currentTarget) {
         k.status = ToyItemStatus.pending;
       }
     }
-    final chosen = pending.first;
     chosen.status = ToyItemStatus.currentTarget;
     _currentTargetId = chosen.toyId;
-    _targetTrackId = chosen.toyId;
+    _targetTrackId = _liveTrackIdFor(chosen);
     _targetMissedFrames = 0;
     _cleanAreaSweeps = 0; // a new toy appeared → restart the "done" countdown
     // The toy was just seen during the scan; anchors fill in on the next live
@@ -752,6 +884,13 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       final verb =
           _collectedCount() > 0 ? 'Next target selected' : 'Target selected';
       debugPrint('[Tracker] $verb: id=${_fmtId(chosen.toyId)}');
+      // One-pass proof: selection happened on the same frame the toy was seen.
+      final tag = _collectedCount() > 0 ? '[NEXT_TARGET]' : '[TARGET_SELECT]';
+      debugPrint('$tag selected=${_fmtId(chosen.toyId)} '
+          'reason=${selectionReason.name} sameFrame=true '
+          'ignoredCandidates=${visiblePending.length - 1}');
+      debugPrint('[TARGET_LOCK] target=${_fmtId(chosen.toyId)} '
+          'status=locked bboxUpdated=true');
     }
     return true;
   }
@@ -843,15 +982,19 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
           }
         }
 
-        // SWITCH FIRST: if the child panned to a DIFFERENT, new valid toy,
-        // follow them — the old target stays pending (never collected). This
-        // beats both freezing on the old toy and falsely auto-collecting it.
-        if (_maybeSwitchTarget(visible)) {
-          _publish(CleanupMissionStatus.active, summary: summary);
-          return;
+        // HARD LOCK: the target never changes for another toy — a higher-
+        // confidence or newly-appeared toy does NOT steal the highlight. The
+        // lock is released only when THIS toy's pickup is confirmed (or the
+        // long-loss deadline deduces it). So while the locked toy is merely
+        // unseen we keep following it, not whatever else drifts into view.
+        if (kDebugMode && _targetMissedFrames % 15 == 0) {
+          final others = visible.where((t) => t.id != _targetTrackId).length;
+          debugPrint('[TARGET_KEEP] target=${_fmtId(target.toyId)} '
+              'reason=alreadyLocked ignoredCandidates=$others');
         }
 
-        // AUTO-COLLECT: only when NO other toy is around (truly picked up).
+        // AUTO-COLLECT: deduce the pickup once the toy has been gone long
+        // enough with the scene steady (it was truly picked up).
         if (_canAutoCollect(target, visible, rawClassNames)) {
           _advanceMissionFlow(
             MissionFlowEvent.collectionVerified,
@@ -987,74 +1130,6 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     return false;
   }
 
-  /// If the active target has been lost a while and a DIFFERENT, stable, NEW
-  /// (non-anchor) valid toy is on screen, switch to it — the old target stays
-  /// pending (never collected). This is how the robot follows the child when
-  /// they pan to another toy instead of getting stuck on the first one.
-  bool _maybeSwitchTarget(List<TrackedToy> visible) {
-    if (!_config.allowTargetSwitchWhenNewValidToyVisible) return false;
-    final id = _currentTargetId;
-    final target = id != null ? _itemById(id) : null;
-    if (target == null || target.isCollected) return false;
-    if (target.source == ToySource.childTap) return false;
-    if (_targetMissedFrames < _config.minFramesBeforeTargetSwitch) return false;
-    final lastSeen = _targetLastSeenAt;
-    if (lastSeen == null) return false;
-    if (_clock().difference(lastSeen) < _config.minSecondsBeforeTargetSwitch) {
-      return false;
-    }
-
-    for (final t in visible) {
-      if (t.id == _targetTrackId) continue;
-      if (_sceneAnchors.containsKey(t.id)) continue; // not "new" → not a switch
-      if (t.framesSeen < _minCandidateFrames) continue; // not a one-frame blip
-      final item = _missionItemForTrack(t);
-      if (item.isCollected || item.toyId == target.toyId) continue;
-      // Switch: old target back to pending (kept), new toy becomes active.
-      target.status = ToyItemStatus.pending;
-      item.status = ToyItemStatus.currentTarget;
-      _currentTargetId = item.toyId;
-      _targetTrackId = t.id;
-      _targetMissedFrames = 0;
-      _targetLastSeenAt = _clock();
-      _sceneAnchors = {
-        for (final v in visible)
-          if (v.id != t.id) v.id: v.box,
-      };
-      if (kDebugMode) {
-        debugPrint('[Mission] Active target lost: id=${_fmtId(target.toyId)}');
-        debugPrint('[Mission] Active target moved to pending: '
-            'id=${_fmtId(target.toyId)}');
-        debugPrint('[Mission] New visible target found while previous pending: '
-            'id=${_fmtId(item.toyId)}');
-        debugPrint('[Mission] Target switched: from=${_fmtId(target.toyId)} '
-            'to=${_fmtId(item.toyId)}');
-      }
-      _pendingMessage = '¡Veo otro juguete! Recoge este.';
-      _pendingMessageFrames = _pendingMessageDuration;
-      return true;
-    }
-    return false;
-  }
-
-  /// The mission item for a live [track]: an existing known toy (matched by
-  /// stable id or proximity — so a returning toy keeps its identity and is
-  /// never duplicated), or a brand-new one absorbed on the spot.
-  ToyMissionItem _missionItemForTrack(TrackedToy track) {
-    for (final k in _known) {
-      if (k.toyId == track.id || _near(k.box, track.box)) return k;
-    }
-    final item = ToyMissionItem(
-      toyId: track.id,
-      source: ToySource.automaticDetection,
-      box: track.box,
-      confidence: track.confidence,
-      orderIndex: _orderCounter++,
-      firstSeenFrame: _frame,
-    );
-    _known.add(item);
-    return item;
-  }
 
   /// The target has been gone past the re-scan deadline and eager auto-collect
   /// did not already fire (e.g. the toy kept flickering in and out, repeatedly
@@ -1071,6 +1146,27 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       rawClassNames: rawClassNames,
       targetMissing: true,
     );
+    // CAMERA MOVE, not a pickup: when a DIFFERENT uncollected toy is now in
+    // view, the child panned to a new area instead of lifting the locked toy. A
+    // pan must NEVER be read as a pickup (the "invalidatedByCameraMove" case),
+    // so keep the lost toy pending and re-scan — the one-pass sweep then locks
+    // whatever the camera sees now. A toy that simply VANISHED with no new toy
+    // in view still falls through to a deduced pickup, so a reaching hand (not a
+    // new toy) never blocks the count.
+    if (_hasNewUncollectedVisible(visible)) {
+      final target =
+          _currentTargetId != null ? _itemById(_currentTargetId!) : null;
+      if (target != null && !target.isCollected) {
+        target.status = ToyItemStatus.pending;
+      }
+      if (kDebugMode) {
+        debugPrint('[Mission] Target invalidated by camera move -> re-scan '
+            '(not a pickup): '
+            'id=${target != null ? _fmtId(target.toyId) : '-'}');
+      }
+      _publish(_beginRescan(fromAsk: false));
+      return;
+    }
     _pendingVerificationTargetId = null;
     _advanceMissionFlow(
       MissionFlowEvent.collectionVerified,
@@ -1331,6 +1427,9 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       debugPrint('MissionDX: collected id=$id auto=$auto '
           'collected=${_collectedCount()} known=${_known.length} '
           'pending=${_pendingCount()}');
+      debugPrint('[PICKUP_CONFIRMED] '
+          'target=${id != null ? _fmtId(id) : '-'} '
+          'basketAfter=${_collectedCount()} auto=$auto');
     }
     _advanceMissionFlow(
       MissionFlowEvent.collectionVerified,
@@ -1372,7 +1471,8 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
   void childDone() {
     final s = state.missionStatus;
     if (s != CleanupMissionStatus.askingIfMoreToys &&
-        s != CleanupMissionStatus.waitingForChildTap) {
+        s != CleanupMissionStatus.waitingForChildTap &&
+        s != CleanupMissionStatus.needsMoreToysForGoal) {
       return;
     }
     // Block ONLY when a toy is actually on screen right now (a green box / a
@@ -1393,12 +1493,36 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
       _publish(_beginCleanAreaVerification());
       return;
     }
-    // No toy visible → honor the finish. Confirm any pending pickup (the child
-    // says the floor is clear) so its +1 is not lost, then complete.
+    // No toy visible → confirm any pending pickup (the child says the floor is
+    // clear) so its +1 is not lost, then evaluate the goal gate.
     _confirmPendingCollection();
+    final collected = _collectedCount();
+
+    // ABSOLUTE RULE: a fixed-goal challenge cannot be "completed" before the
+    // goal is met — even on an explicit "Terminé". Show the score and keep the
+    // challenge open (the child can keep searching or back out); nothing is
+    // recorded as completed. Free/record mode has no goal, so it finishes here.
+    if (_completionGuard.goalCompletionBlock(
+          collectedToyCount: collected,
+          targetPickupGoal: _goal.targetPickupGoal,
+        ) ==
+        MissionCompletionBlockedReason.goalNotReached) {
+      _lastGuardDecision = 'completionBlocked';
+      _lastGuardReason = 'goalNotReached';
+      _lastCompletedAllowed = false;
+      _pendingMessage = _goalNotReachedFinishMessage(collected);
+      _pendingMessageFrames = _pendingMessageDuration;
+      if (kDebugMode) {
+        debugPrint('[Mission] Manual finish blocked: goal NOT reached '
+            '($collected/${_goal.targetPickupGoal}) → needsMoreToysForGoal');
+      }
+      _startScanWindow();
+      _publish(CleanupMissionStatus.needsMoreToysForGoal);
+      return;
+    }
     if (kDebugMode) {
       debugPrint('[Mission] Manual finish accepted (no toy visible): '
-          'collected=${_collectedCount()} known=${_known.length}');
+          'collected=$collected known=${_known.length}');
     }
     _recordMission(completed: true);
     _publish(CleanupMissionStatus.completed);
@@ -1410,6 +1534,7 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     const allowed = {
       CleanupMissionStatus.waitingForChildTap,
       CleanupMissionStatus.askingIfMoreToys,
+      CleanupMissionStatus.needsMoreToysForGoal,
       CleanupMissionStatus.active,
       CleanupMissionStatus.targetLost,
     };
@@ -1511,6 +1636,7 @@ class ToyCleanupController extends Notifier<LiveDetectionState> {
     _scanAttempts = 0;
     _rescanFromAsk = false;
     _lastVisibleIds = const {};
+    _lastVisibleToys = const [];
     _scanStartedAt = null;
     _rawTotal = 0;
     _mappedTotal = 0;

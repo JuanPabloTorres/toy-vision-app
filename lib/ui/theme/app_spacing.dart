@@ -3,6 +3,8 @@
 class AppSpacing {
   AppSpacing._();
 
+  /// Micro gap for tight stacks (label above a value, icon-to-text nudge).
+  static const double xxs = 2;
   static const double xs = 4;
   static const double sm = 8;
   static const double md = 12;

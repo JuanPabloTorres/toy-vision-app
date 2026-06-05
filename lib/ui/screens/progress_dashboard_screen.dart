@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../business/progress/progress_stats_service.dart';
 import '../../business/progress/progress_summary.dart';
+import '../components/app_screen_header.dart';
 import '../components/stat_tile.dart';
 import '../panels/achievements_grid.dart';
 import '../panels/progress_calendar_month.dart';
@@ -37,7 +38,11 @@ class ProgressDashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _Heading(),
+            const AppScreenHeader(
+              title: 'Mis estrellas',
+              subtitle: '¡Mira todo lo que has logrado!',
+              titleStyle: AppTypography.celebrationHeadline,
+            ),
             const SizedBox(height: AppSpacing.lg),
             _StarsHero(stars: summary.totalStars),
             const SizedBox(height: AppSpacing.md),
@@ -66,31 +71,6 @@ class ProgressDashboardScreen extends ConsumerWidget {
   }
 }
 
-/// "Mis estrellas" + a warm one-liner. Renamed from "Mi progreso" so the
-/// screen reads like a collection of rewards, not a report.
-class _Heading extends StatelessWidget {
-  const _Heading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text('Mis estrellas', style: AppTypography.celebrationHeadline),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '¡Mira todo lo que has logrado!',
-          style: AppTypography.parentLabel.copyWith(
-            fontSize: 14,
-            color: AppColors.textBlueDark,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// The motivating focal point: one big, sunny card celebrating the stars
 /// earned. Everything else on the screen is secondary to this number.
 class _StarsHero extends StatelessWidget {
@@ -106,7 +86,7 @@ class _StarsHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFD658), AppColors.missionYellow],
+          colors: [AppColors.missionYellowLight, AppColors.missionYellow],
         ),
         borderRadius: BorderRadius.circular(AppRadii.xl),
         boxShadow: AppShadows.card,

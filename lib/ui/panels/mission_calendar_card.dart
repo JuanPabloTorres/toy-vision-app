@@ -121,7 +121,7 @@ class _DayColumn extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppSpacing.xxs),
         Text(
           '${day.dayNumber}',
           style: TextStyle(

@@ -10,6 +10,7 @@ import '../../business/progress/progress_stats_service.dart';
 import '../../camera/controllers/toy_cleanup_controller.dart';
 import '../../storage/active_mission_repository.dart';
 import '../../storage/mission_history_repository.dart';
+import '../components/app_screen_header.dart';
 import '../components/sound_toggle_button.dart';
 import '../theme/app_button_styles.dart';
 import '../theme/app_colors.dart';
@@ -43,11 +44,10 @@ class ParentScreen extends ConsumerWidget {
           AppSpacing.xl,
         ),
         children: [
-          const Text('Para padres', style: AppTypography.celebrationHeadline),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Información y ajustes de Toy Vision',
-            style: AppTypography.parentLabel.copyWith(fontSize: 14),
+          const AppScreenHeader(
+            title: 'Para padres',
+            subtitle: 'Información y ajustes de Toy Vision',
+            titleStyle: AppTypography.celebrationHeadline,
           ),
           const SizedBox(height: AppSpacing.lg),
           _SystemSection(),

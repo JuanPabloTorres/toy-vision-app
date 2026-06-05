@@ -8,8 +8,10 @@ import '../../business/live_detection_state.dart';
 import '../../business/mission/cleanup_mission_status.dart';
 import '../../detection/yolo/yolo_model_config.dart';
 import '../../ui/app_assets.dart';
+import '../../ui/components/app_back_button.dart';
 import '../../ui/components/app_image.dart';
 import '../../ui/components/app_playful_icon.dart';
+import '../../ui/components/basket_counter.dart';
 import '../../ui/components/primary_action_button.dart';
 import '../../ui/components/searching_dots.dart';
 import '../../ui/navigation/app_bottom_navigation.dart';
@@ -296,6 +298,7 @@ String _statusTitle(LiveDetectionState state) {
     CleanupMissionStatus.scanning => 'Buscando juguetes…',
     CleanupMissionStatus.rescanning => 'Buscando otro…',
     CleanupMissionStatus.cleanAreaVerification => 'Revisando el área…',
+    CleanupMissionStatus.needsMoreToysForGoal => 'Busca en otra área',
     CleanupMissionStatus.active ||
     CleanupMissionStatus.targetLost =>
       'Juguete ${collected + 1}',
@@ -334,7 +337,7 @@ class _MissionTopBar extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _RoundButton(icon: Icons.arrow_back_rounded, onTap: onBack),
+        AppBackButton(onPressed: onBack),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -350,7 +353,7 @@ class _MissionTopBar extends StatelessWidget {
             ),
           ),
         ),
-        _ScorePanel(
+        BasketCounter(
           collected: collected,
           goal: goal,
           personalBest: personalBest,
@@ -362,107 +365,8 @@ class _MissionTopBar extends StatelessWidget {
   }
 }
 
-/// "🧺 N / meta" — the challenge score. Shows progress toward the GOAL (a
-/// challenge target, never "toys left in the room"), the personal record to
-/// beat, and celebrates reaching the goal / setting a new record. In free
-/// (record) mode there is no "/ meta" — every pickup is a record attempt.
-class _ScorePanel extends StatelessWidget {
-  const _ScorePanel({
-    required this.collected,
-    required this.goal,
-    required this.personalBest,
-    required this.hasReachedGoal,
-    required this.isNewRecord,
-  });
-
-  final int collected;
-  final int? goal;
-  final int personalBest;
-  final bool hasReachedGoal;
-  final bool isNewRecord;
-
-  @override
-  Widget build(BuildContext context) {
-    final reached = hasReachedGoal || isNewRecord;
-    final basketLabel = goal == null ? '$collected' : '$collected / $goal';
-    final subLabel = isNewRecord
-        ? '¡Nuevo récord!'
-        : (personalBest > 0 ? 'Récord: $personalBest' : null);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: reached ? AppColors.missionYellow : AppColors.cardWhite,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppPlayfulIcon(
-                symbol: AppPlayfulIconSymbol.toyBasket,
-                size: 22,
-                color: reached ? Colors.white : AppColors.primaryBlue,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                basketLabel,
-                style: AppTypography.missionTitle.copyWith(
-                  fontSize: 18,
-                  color: reached ? Colors.white : AppColors.textBlueDark,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (subLabel != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subLabel,
-            style: AppTypography.missionTitle.copyWith(
-              fontSize: 11,
-              color: isNewRecord ? AppColors.missionYellow : Colors.white,
-              shadows: const [
-                Shadow(color: Colors.black54, blurRadius: 4),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.cardWhite,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Icon(icon, color: AppColors.textBlueDark, size: 24),
-        ),
-      ),
-    );
-  }
-}
+// (The score/basket display now lives in the reusable [BasketCounter]
+// component, and the back control in [AppBackButton].)
 
 // ---------------------------------------------------------------------------
 // Camera card
@@ -955,6 +859,10 @@ class _ActionRow extends StatelessWidget {
       case CleanupMissionStatus.scanning:
       case CleanupMissionStatus.rescanning:
       case CleanupMissionStatus.cleanAreaVerification:
+      case CleanupMissionStatus.needsMoreToysForGoal:
+        // Goal not met yet but the area here looks clean: keep the robot
+        // searching (it auto-resumes when a toy turns up elsewhere). No finish
+        // button — completion is blocked until the goal is reached.
         return const _ScanningIndicator();
 
       case CleanupMissionStatus.active:

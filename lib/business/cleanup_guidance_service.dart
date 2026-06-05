@@ -64,6 +64,15 @@ class CleanupGuidanceService {
       case CleanupMissionStatus.cleanAreaVerification:
         return 'Estoy revisando el área…';
 
+      case CleanupMissionStatus.needsMoreToysForGoal:
+        // The area HERE looks clean but the challenge goal isn't met yet — never
+        // say "completado"; show the score and send the child to another area.
+        if (targetPickupGoal != null) {
+          return 'Llevas $collectedCount de $targetPickupGoal. '
+              'No veo más juguetes aquí. Apunta a otra área para seguir.';
+        }
+        return 'No veo más juguetes aquí. Apunta a otra área para seguir.';
+
       case CleanupMissionStatus.askingIfMoreToys:
         return '¿Ves otro juguete?';
 

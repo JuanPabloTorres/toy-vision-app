@@ -140,4 +140,98 @@ void main() {
       );
     });
   });
+
+  // The ABSOLUTE rule: a fixed-goal challenge can never complete below the goal,
+  // no matter how clean the area looks. This is the fix for the "completed at
+  // 1/5 or 3/5" bug.
+  group('goal completion gate', () {
+    const cleanEvidence = MissionCompletionEvidence(
+      pendingToyCount: 0,
+      visibleToyCount: 0,
+      validatedToyDetectionsInSweep: 0,
+      sceneStability: SceneStabilityStatus.stable,
+      sawOnlyRawNonToyDetections: false,
+    );
+
+    test('goalCompletionBlock: below goal → goalNotReached', () {
+      expect(
+        guard.goalCompletionBlock(collectedToyCount: 1, targetPickupGoal: 5),
+        MissionCompletionBlockedReason.goalNotReached,
+      );
+      expect(
+        guard.goalCompletionBlock(collectedToyCount: 3, targetPickupGoal: 5),
+        MissionCompletionBlockedReason.goalNotReached,
+      );
+    });
+
+    test('goalCompletionBlock: at/over goal → none', () {
+      expect(
+        guard.goalCompletionBlock(collectedToyCount: 5, targetPickupGoal: 5),
+        MissionCompletionBlockedReason.none,
+      );
+      expect(
+        guard.goalCompletionBlock(collectedToyCount: 6, targetPickupGoal: 5),
+        MissionCompletionBlockedReason.none,
+      );
+    });
+
+    test('goalCompletionBlock: free/record mode (null goal) → none', () {
+      expect(
+        guard.goalCompletionBlock(collectedToyCount: 0, targetPickupGoal: null),
+        MissionCompletionBlockedReason.none,
+      );
+    });
+
+    test('canCompleteGoalMission: blocked below goal even on a clean area', () {
+      expect(
+        guard.canCompleteGoalMission(
+          collectedToyCount: 1,
+          targetPickupGoal: 5,
+          evidence: cleanEvidence,
+        ),
+        isFalse,
+      );
+      expect(
+        guard.canCompleteGoalMission(
+          collectedToyCount: 3,
+          targetPickupGoal: 5,
+          evidence: cleanEvidence,
+        ),
+        isFalse,
+      );
+    });
+
+    test('canCompleteGoalMission: allowed at the goal with a clean area', () {
+      expect(
+        guard.canCompleteGoalMission(
+          collectedToyCount: 5,
+          targetPickupGoal: 5,
+          evidence: cleanEvidence,
+        ),
+        isTrue,
+      );
+    });
+
+    test('canCompleteGoalMission: at the goal but a toy is visible → blocked',
+        () {
+      expect(
+        guard.canCompleteGoalMission(
+          collectedToyCount: 5,
+          targetPickupGoal: 5,
+          evidence: const MissionCompletionEvidence(
+            pendingToyCount: 0,
+            visibleToyCount: 1,
+            validatedToyDetectionsInSweep: 1,
+            sceneStability: SceneStabilityStatus.stable,
+            sawOnlyRawNonToyDetections: false,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('canCompleteRecordMission: a clean area completes (no goal)', () {
+      expect(guard.canCompleteRecordMission(cleanEvidence), isTrue);
+    });
+  });
 }
