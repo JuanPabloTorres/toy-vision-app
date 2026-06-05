@@ -115,6 +115,21 @@ class _ProgressSection extends ConsumerWidget {
               : '${last.collectedToyCount} de ${last.initialToyCount} juguetes',
         ),
         _Row('Última actividad', last == null ? '—' : _formatDate(last.date)),
+        // Trust signals for the LAST mission: did the robot visually confirm
+        // the area was clean, and how independent was the run. This is what
+        // tells a parent the task was really finished — not just tapped away.
+        _Row(
+          'Verificación visual',
+          last == null
+              ? '—'
+              : (last.visuallyVerified ? 'Sí, área revisada' : 'Sin verificar'),
+        ),
+        _Row(
+          'Recogida',
+          last == null
+              ? '—'
+              : (last.usedManualHelp ? 'Con ayuda manual' : 'Automática'),
+        ),
       ],
     );
   }

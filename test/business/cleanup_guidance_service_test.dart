@@ -40,24 +40,24 @@ void main() {
   });
 
   group('active / targetLost (one toy at a time)', () {
-    test('first toy: "Recoge el juguete marcado."', () {
+    test('first toy: robot starts with the marked toy', () {
       expect(
         msg(status: CleanupMissionStatus.active, collected: 0),
-        'Recoge el juguete marcado.',
+        'Vamos por este primero.',
       );
     });
 
     test('after collecting one: nudges to the next', () {
       expect(
         msg(status: CleanupMissionStatus.active, collected: 1),
-        '¡Muy bien! Ahora recoge este.',
+        '¡Muy bien! Vamos por este.',
       );
     });
 
-    test('target lost says it is searching (box is hidden)', () {
+    test('target lost asks the child to point back without a stale box', () {
       expect(
         msg(status: CleanupMissionStatus.targetLost, collected: 1),
-        'No lo veo ahora. Muéveme un poquito para encontrarlo.',
+        'Lo perdí un momento. Apunta aquí otra vez.',
       );
     });
   });
@@ -77,10 +77,11 @@ void main() {
       );
     });
 
-    test('confirming pickup asks the rare manual fallback', () {
+    test('confirming pickup asks to point at the area again (no "¿recogiste?")',
+        () {
       expect(
         msg(status: CleanupMissionStatus.confirmingPickup),
-        'No estoy seguro. ¿Lo recogiste?',
+        'No estoy seguro. Apunta otra vez al área.',
       );
     });
   });

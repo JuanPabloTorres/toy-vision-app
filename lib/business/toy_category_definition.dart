@@ -7,6 +7,16 @@ enum UiDisplayBehavior {
   hideUnlessDebug,
 }
 
+/// Semantic identity assigned after detector labels are mapped into ToyVision.
+/// It keeps business decisions clear: a generic toy-like object is not a named
+/// toy, and an uncertain sighting is not a confirmed toy.
+enum ToyObjectIdentity {
+  recognizedToy,
+  unknownToy,
+  notToy,
+  uncertain,
+}
+
 /// Definition of a single category in the [ToyCategoryRegistry].
 ///
 /// This is the single place that decides, per label, whether something counts
@@ -20,6 +30,7 @@ class ToyCategoryDefinition {
     required this.minimumConfidence,
     required this.isIgnored,
     required this.uiDisplayBehavior,
+    required this.identity,
   });
 
   final String label;
@@ -28,4 +39,5 @@ class ToyCategoryDefinition {
   final double minimumConfidence;
   final bool isIgnored;
   final UiDisplayBehavior uiDisplayBehavior;
+  final ToyObjectIdentity identity;
 }

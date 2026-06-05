@@ -3,7 +3,10 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:toyvision_realtime/business/mission/cleanup_mission_status.dart';
+import 'package:toyvision_realtime/business/mission/mission_goal.dart';
 import 'package:toyvision_realtime/camera/controllers/toy_cleanup_controller.dart';
+import 'package:toyvision_realtime/storage/active_mission_repository.dart';
+import 'package:toyvision_realtime/storage/mission_history_repository.dart';
 import 'package:ultralytics_yolo/ultralytics_yolo.dart';
 
 /// Integration guards for the Phase 7 **automatic, progressive** mission
@@ -39,6 +42,21 @@ YOLOResult _chair({double x = 0.6, double size = 0.3}) {
   );
 }
 
+YOLOResult _genericToy({
+  double x = 0.2,
+  double y = 0.2,
+  double size = 0.3,
+  double confidence = 0.78,
+}) {
+  return YOLOResult(
+    classIndex: 0,
+    className: 'toy',
+    confidence: confidence,
+    boundingBox: const Rect.fromLTWH(200, 200, 300, 300),
+    normalizedBox: Rect.fromLTWH(x, y, size, size),
+  );
+}
+
 void main() {
   // Scan windows are time-based; drive a fake clock that advances 250ms per
   // ingested frame so the windows (5s initial / 3s rescan) close
@@ -61,10 +79,14 @@ void main() {
   }
 
   /// Drives the controller to an active mission with [n] teddy bears.
+  // These flow-machinery tests exercise the clean-area COMPLETION path, which
+  // (in the challenge model) auto-completes in free/record mode — the goal gate
+  // itself is covered in mission_challenge_test. So start missions in free mode
+  // here to test completion without a pickup goal interfering.
   ToyCleanupController activeWith(ProviderContainer c, {int n = 2}) {
     final ctrl = c.read(toyCleanupControllerProvider.notifier);
     ctrl.markModelReady();
-    ctrl.startMission();
+    ctrl.startMission(goal: MissionGoal.record);
     final frame = [
       for (var i = 0; i < n; i++)
         _teddyBear(classIndex: i + 1, x: 0.15 + i * 0.3),
@@ -97,6 +119,38 @@ void main() {
       expect(s.currentTargetToyId, isNotNull);
       expect(s.currentTargetIndex, 1);
       expect(s.collectedToyCount, 0);
+      final active = c.read(activeMissionProvider);
+      expect(active, isNotNull);
+      expect(active!.baselineToyCount, 2);
+      expect(active.scanCompletedAt, isNotNull);
+      expect(active.activeTargetId, s.currentTargetToyId);
+      expect(active.baselineToyIds, hasLength(2));
+    });
+
+    test('debug snapshot exposes real-device calibration signals', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission();
+
+      feed(ctrl, [_genericToy()], 34);
+      var s = c.read(toyCleanupControllerProvider);
+      expect(s.missionStatus, CleanupMissionStatus.active);
+      expect(s.knownToyCount, 1);
+      expect(s.debugSnapshot, isNotNull);
+      expect(s.debugSnapshot!.rawDetectionsCount, 1);
+      expect(s.debugSnapshot!.validToyCount, 1);
+      expect(s.debugSnapshot!.unknownToyCount, 1);
+      expect(s.debugSnapshot!.targetConfidence, closeTo(0.78, 0.01));
+      expect(s.debugSnapshot!.approxFps, greaterThan(0));
+
+      feed(ctrl, const [], 4);
+      s = c.read(toyCleanupControllerProvider);
+      expect(s.missionStatus, CleanupMissionStatus.targetLost);
+      expect(s.debugSnapshot!.targetMissingFrameCount, greaterThan(0));
+      expect(s.debugSnapshot!.rawDetectionsCount, 0);
+      expect(s.debugSnapshot!.validToyCount, 0);
     });
 
     test('a SINGLE brief detection is still presented to collect', () {
@@ -111,7 +165,10 @@ void main() {
       // while, live guidance shows it as `targetLost` ("buscando"), but a
       // highlighted target is still presented — that is what matters here.
       feed(ctrl, [_teddyBear()], 1);
-      feed(ctrl, const [], 30);
+      // Enough empty frames to close the 5s scan window (≈20 frames) and
+      // present the target, but fewer than the auto-collect threshold so it is
+      // still shown as `targetLost` rather than being deduced as picked up.
+      feed(ctrl, const [], 23);
       final s = c.read(toyCleanupControllerProvider);
       expect(s.missionStatus.expectsCurrentTarget, isTrue);
       expect(s.missionStatus, isNot(CleanupMissionStatus.waitingForChildTap));
@@ -238,22 +295,22 @@ void main() {
       expect(s.shouldShowTargetOverlay, isTrue);
     });
 
-    test('a long loss auto-rescans — never freezes the box, never completes',
-        () {
+    test('a long loss auto-collects the toy, then keeps searching — never '
+        'freezes the box, never completes on a blank view', () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = activeWith(c, n: 1);
 
-      // Lose the toy for longer than the rescan window (> targetRescanFrames).
+      // The lone toy is gone for a long time → deduced as a pickup (+1), then
+      // the robot keeps sweeping for the next toy. It never freezes a target
+      // box and never completes on a blank/covered view.
       feed(ctrl, const [], 30);
       final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 1);
       expect(
-        s.missionStatus,
-        anyOf(
-          CleanupMissionStatus.rescanning,
-          CleanupMissionStatus.askingIfMoreToys,
-        ),
-        reason: 'a long loss must re-scan, not keep a frozen target',
+        s.missionStatus.isScanningPhase,
+        isTrue,
+        reason: 'after the pickup it keeps hunting, not a frozen target',
       );
       expect(s.shouldShowTargetOverlay, isFalse);
       expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
@@ -347,7 +404,7 @@ void main() {
       final ctrl = twoToysActive(c);
       final original = c.read(toyCleanupControllerProvider).currentTargetToyId;
 
-      feed(ctrl, [anchor()], 10); // lost, but under the auto-collect threshold
+      feed(ctrl, [anchor()], 8); // lost, but under the auto-collect threshold
       expect(c.read(toyCleanupControllerProvider).collectedToyCount, 0);
 
       feed(ctrl, [target(), anchor()], 3); // the SAME toy comes back
@@ -361,25 +418,22 @@ void main() {
       expect(s.shouldShowTargetOverlay, isTrue);
     });
 
-    test('lone toy, ambiguous loss → rare manual fallback "¿Lo recogiste?"',
-        () {
+    test('lone toy lost (no toy-anchors) auto-collects (+1) and the clean area '
+        'completes — the base-case first victory', () {
       final c = container();
       addTearDown(c.dispose);
-      final ctrl = activeWith(c, n: 1); // single toy at x≈0.15, no anchors
-      final original = c.read(toyCleanupControllerProvider).currentTargetToyId;
+      final ctrl = activeWith(c, n: 1); // single toy at x≈0.15, no toy-anchors
 
-      // The camera still sees context (a chair → scene valid) but there is no
-      // valid TOY to switch to and no anchors to tell a pickup from a pan → ask.
-      feed(ctrl, [_chair(x: 0.62)], 30);
-      var s = c.read(toyCleanupControllerProvider);
-      expect(s.missionStatus, CleanupMissionStatus.confirmingPickup);
-      expect(s.collectedToyCount, 0);
+      // The child lifts the one toy; the camera now sees only a chair (raw
+      // context, not a validated toy). This is the lone-toy base case: with no
+      // toy-anchors the anchor-based scene check can only ever say
+      // "insufficient", so the user-approved fallback confirms the pickup, and
+      // the clean, seen area then auto-completes the mission.
+      feed(ctrl, [_chair(x: 0.62)], 40);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.collectedToyCount, 1, reason: 'lone toy pickup is counted');
+      expect(s.missionStatus, CleanupMissionStatus.completed);
       expect(s.shouldShowTargetOverlay, isFalse);
-
-      ctrl.confirmPickupYes();
-      s = c.read(toyCleanupControllerProvider);
-      expect(s.collectedToyCount, 1);
-      expect(s.currentTargetToyId, isNot(original));
     });
   });
 
@@ -514,9 +568,6 @@ void main() {
       final s = c.read(toyCleanupControllerProvider);
       expect(seenTargets.length, 3); // three DISTINCT targets, no repeats
       expect(s.collectedToyCount, 3);
-      // All three collected and the (collected) toys are still in view → the
-      // clean-area sweep sees the area and auto-completes. No asking.
-      expect(s.missionStatus, CleanupMissionStatus.completed);
     });
 
     test('after the last toy it verifies the area (does not complete yet)', () {
@@ -533,54 +584,86 @@ void main() {
       );
     });
 
-    test('last toy + the area is actually seen → auto-completes (no asking)',
-        () {
+    test('a COLLECTED toy still in frame does NOT block completion (the "3/3 '
+        'never finishes" bug)', () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = activeWith(c, n: 1); // toy at x≈0.15
-      ctrl.collectCurrentToy(); // → cleanAreaVerification
-      // The camera keeps seeing the area; nothing NEW (the toy is collected) →
-      // verification passes and the mission completes on its own.
-      feed(ctrl, [_teddyBear(x: 0.15)], 24);
+      ctrl.collectCurrentToy(); // collected; the SAME toy lingers in view
+      // The picked-up toy stays on screen (held up / in a basket). It must NOT
+      // keep the mission alive — there is nothing left to collect → finish.
+      feed(ctrl, [_teddyBear(x: 0.15)], 30);
       final s = c.read(toyCleanupControllerProvider);
-      expect(s.missionStatus, CleanupMissionStatus.completed);
       expect(s.collectedToyCount, 1);
+      expect(
+        s.missionStatus,
+        CleanupMissionStatus.completed,
+        reason: 'an already-collected toy in frame must not block completion',
+      );
     });
 
-    test('manual finish is blocked while a toy is still visible', () {
+    test('a blank/covered view does NOT complete — it keeps searching', () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = activeWith(c, n: 1);
       ctrl.collectCurrentToy(); // → cleanAreaVerification
-      feed(ctrl, const [], 24); // empty → no view → asks (fallback)
-      expect(
-        c.read(toyCleanupControllerProvider).missionStatus,
-        CleanupMissionStatus.askingIfMoreToys,
-      );
 
-      // A toy is now in view again; the child taps "No, terminé".
-      feed(ctrl, [_teddyBear(x: 0.3)], 1);
-      ctrl.childDone();
+      // The camera sees NOTHING (covered / pointed at a blank wall): the robot
+      // is "not sure", so it must NEVER auto-complete on a blank view. It keeps
+      // sweeping automatically (no button prompt) until it sees the area.
+      feed(ctrl, const [], 24);
+
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+      expect(s.missionStatus.isScanningPhase, isTrue);
+      expect(s.debugSnapshot!.completedAllowed, isFalse);
+    });
+
+    test('clean sweep completes when the area is seen and no toys remain', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, n: 1);
+      ctrl.collectCurrentToy(); // → cleanAreaVerification
+      // The camera SEES the area (furniture / real context) and finds no toys
+      // → the visible area is clean and stable → auto-complete.
+      feed(ctrl, [_chair()], 24);
+
+      final s = c.read(toyCleanupControllerProvider);
+      expect(
+        s.missionStatus,
+        CleanupMissionStatus.completed,
+        reason: 'saw the area with no toys → complete (baseline is irrelevant)',
+      );
+      expect(s.debugSnapshot!.completedAllowed, isTrue);
+      expect(s.debugSnapshot!.guardReason, 'cleanAreaVerified');
+    });
+
+    test('a different UNCOLLECTED toy still visible keeps the mission going', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, n: 1); // collected toy at x≈0.15
+      ctrl.collectCurrentToy(); // → clean-area search
+      // A DIFFERENT toy (far from the collected one) is on the floor → there is
+      // still something to collect, so the mission must not finish; it guides
+      // to that toy instead.
+      feed(ctrl, [_teddyBear(classIndex: 9, x: 0.7)], 24);
       final s = c.read(toyCleanupControllerProvider);
       expect(
         s.missionStatus,
         isNot(CleanupMissionStatus.completed),
-        reason: 'never finish with a toy still on the floor',
+        reason: 'never finish while a toy still needs collecting',
       );
+      expect(s.currentTargetToyId, isNotNull);
     });
 
-    test('re-scan finds nothing → asks "¿ves otro?" → child finishes', () {
+    test('re-scan that sees the clean area (no toys) completes automatically',
+        () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = activeWith(c, n: 1);
-      ctrl.collectCurrentToy(); // → rescanning
-      feed(ctrl, const [], 24); // empty re-scan window (20 frames + margin)
-      var s = c.read(toyCleanupControllerProvider);
-      expect(s.missionStatus, CleanupMissionStatus.askingIfMoreToys);
-      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
-
-      ctrl.childDone();
-      s = c.read(toyCleanupControllerProvider);
+      ctrl.collectCurrentToy(); // → cleanAreaVerification
+      feed(ctrl, [_chair()], 24); // sees the area (furniture), no toys left
+      final s = c.read(toyCleanupControllerProvider);
       expect(s.missionStatus, CleanupMissionStatus.completed);
       expect(s.collectedToyCount, 1);
     });
@@ -637,25 +720,179 @@ void main() {
       expect(s.currentTargetToyId, isNotNull);
       expect(s.knownToyCount, 1);
 
-      ctrl.collectCurrentToy(); // → rescanning (no more known)
-      feed(ctrl, const [], 24);
-      ctrl.childDone();
+      ctrl.collectCurrentToy(); // → clean-area search (no more known)
+      feed(ctrl, [_chair()], 30); // sees the clean area → auto-finishes itself
       s = c.read(toyCleanupControllerProvider);
       expect(s.missionStatus, CleanupMissionStatus.completed);
       expect(s.collectedToyCount, 1);
     });
 
-    test('"Sí, veo otro" with empty re-scan ends at waitingForChildTap', () {
+    test('a blank view never dead-ends: the mission keeps searching itself', () {
       final c = container();
       addTearDown(c.dispose);
       final ctrl = activeWith(c, n: 1);
-      ctrl.collectCurrentToy(); // → rescanning
-      feed(ctrl, const [], 24); // → askingIfMoreToys
-
-      ctrl.childSeesAnotherToy(); // → rescanning (from ask)
-      feed(ctrl, const [], 24); // nothing found
+      ctrl.collectCurrentToy(); // → clean-area search
+      feed(ctrl, const [], 48); // a long blank view (camera covered/away)
       final s = c.read(toyCleanupControllerProvider);
-      expect(s.missionStatus, CleanupMissionStatus.waitingForChildTap);
+      // The automatic flow never gets stuck in a button prompt and never
+      // completes on a blank view — it just keeps sweeping for the next toy.
+      expect(s.missionStatus, isNot(CleanupMissionStatus.completed));
+      expect(s.missionStatus.isScanningPhase, isTrue);
+    });
+  });
+
+  group('verification metadata (persisted for the Parents view)', () {
+    test('auto-complete via the clean-area sweep records visuallyVerified', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, n: 1); // toy at x≈0.15
+      ctrl.collectCurrentToy(); // → cleanAreaVerification
+      feed(ctrl, [_chair()], 24); // sees the clean area → auto-completes
+      expect(
+        c.read(toyCleanupControllerProvider).missionStatus,
+        CleanupMissionStatus.completed,
+      );
+
+      final saved = c.read(missionHistoryProvider);
+      expect(saved, hasLength(1));
+      expect(
+        saved.first.visuallyVerified,
+        isTrue,
+        reason: 'automatic completion comes from a clean-area sweep',
+      );
+      // The routine "Listo, ya lo guardé" button is the happy path, not an
+      // assist, and no target was ever lost → a clean, automatic run.
+      expect(saved.first.usedManualHelp, isFalse);
+      expect(saved.first.hadUncertainty, isFalse);
+    });
+
+    test('a child-tap fallback records usedManualHelp', () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission(goal: MissionGoal.record); // free mode (completion test)
+      feed(ctrl, const [], 140); // exhaust scan attempts → waitingForChildTap
+      ctrl.addChildTapToy(0.5, 0.5); // the manual assist
+      ctrl.collectCurrentToy(); // → cleanAreaVerification
+      feed(ctrl, [_chair()], 24); // sees the clean area → auto-completes
+      expect(
+        c.read(toyCleanupControllerProvider).missionStatus,
+        CleanupMissionStatus.completed,
+      );
+
+      final saved = c.read(missionHistoryProvider);
+      expect(saved, hasLength(1));
+      expect(saved.first.usedManualHelp, isTrue);
+    });
+  });
+
+  group('mission contract — count only verified pickups, never lose a toy', () {
+    test('lone toy lost then a clean seen area confirms it (+1) and completes',
+        () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, n: 1); // single toy, no anchors
+      expect(c.read(toyCleanupControllerProvider).collectedToyCount, 0);
+      // The toy is gone; the camera keeps SEEING the area (furniture), no toy
+      // in view. A lone-toy loss cannot be confirmed on a single frame (no
+      // anchors) so it becomes a PENDING verification; the clean-area window
+      // then confirms the pickup — the toy is counted (+1) and the mission
+      // completes. It must NEVER complete with the toy left uncounted.
+      feed(ctrl, [_chair()], 60);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(
+        s.collectedToyCount,
+        1,
+        reason: 'the pending toy is counted when the clean area is verified',
+      );
+      expect(
+        s.missionStatus,
+        CleanupMissionStatus.completed,
+        reason: 'never complete with an uncounted toy',
+      );
+    });
+
+    test('a second visible toy blocks completion after collecting the first',
+        () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = activeWith(c, n: 2);
+      ctrl.collectCurrentToy(); // → cleanAreaVerification, collected = 1
+      // The OTHER toy is still on screen (a green box) during the sweep → the
+      // mission must keep going (select it), never complete with a toy visible.
+      feed(
+        ctrl,
+        [
+          _teddyBear(classIndex: 1, x: 0.15),
+          _teddyBear(classIndex: 2, x: 0.6),
+        ],
+        24,
+      );
+      final s = c.read(toyCleanupControllerProvider);
+      expect(
+        s.missionStatus,
+        isNot(CleanupMissionStatus.completed),
+        reason: 'a visible toy / green box must block completion',
+      );
+      expect(s.collectedToyCount, 1);
+      expect(
+        s.currentTargetToyId,
+        isNotNull,
+        reason: 'the remaining visible toy becomes the next target',
+      );
+    });
+  });
+
+  group('counting concept (collected score, baseline is diagnostic only)', () {
+    test('mission starts at collectedToyCount = 0 and detecting does not add',
+        () {
+      final c = container();
+      addTearDown(c.dispose);
+      final ctrl = c.read(toyCleanupControllerProvider.notifier);
+      ctrl.markModelReady();
+      ctrl.startMission();
+      expect(c.read(toyCleanupControllerProvider).collectedToyCount, 0);
+      // Detecting + locking a toy must NOT increment the score — only a
+      // verified pickup does.
+      feed(ctrl, [_teddyBear()], 34);
+      final s = c.read(toyCleanupControllerProvider);
+      expect(s.knownToyCount, 1);
+      expect(s.currentTargetToyId, isNotNull);
+      expect(
+        s.collectedToyCount,
+        0,
+        reason: 'just detecting a toy must not add to the collected score',
+      );
+    });
+
+    test('an over-counted baseline does NOT block completion', () {
+      final c = container();
+      addTearDown(c.dispose);
+      // The initial scan sees TWO toys (baseline = 2).
+      final ctrl = activeWith(c, n: 2);
+      expect(c.read(toyCleanupControllerProvider).knownToyCount, 2);
+
+      // The child collects the first toy...
+      ctrl.collectCurrentToy(); // → cleanAreaVerification, collected = 1
+
+      // ...but from now on the camera only ever sees the clean area (furniture).
+      // The SECOND baseline toy is off-frame / was grouped / a double-count.
+      // The mission must STILL complete: the baseline is diagnostic only and
+      // never keeps the mission alive against what the camera actually sees.
+      feed(ctrl, [_chair()], 24);
+
+      final s = c.read(toyCleanupControllerProvider);
+      expect(
+        s.missionStatus,
+        CleanupMissionStatus.completed,
+        reason: 'baseline=2 but the visible area is clean → complete',
+      );
+      expect(
+        s.collectedToyCount,
+        1,
+        reason: 'the score is how many were collected, not the baseline',
+      );
     });
   });
 

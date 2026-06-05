@@ -42,7 +42,7 @@ class AppButton extends StatelessWidget {
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       overlayColor: const WidgetStatePropertyAll(Color(0x14FFFFFF)),
       side: WidgetStatePropertyAll(
-        BorderSide(color: Colors.white.withOpacity(0.45), width: 1.5),
+        BorderSide(color: Colors.white.withValues(alpha: 0.45), width: 1.5),
       ),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(

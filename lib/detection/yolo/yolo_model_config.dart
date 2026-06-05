@@ -47,6 +47,22 @@ class YoloModelConfig {
 
   static const YoloModelConfig fallback = YoloModelConfig();
 
+  /// A copy with selected fields replaced. Used by the debug-only confidence
+  /// override in the Detection Recall Lab — never on a production path.
+  YoloModelConfig copyWith({
+    double? confidenceThreshold,
+    double? iouThreshold,
+  }) =>
+      YoloModelConfig(
+        modelPath: modelPath,
+        task: task,
+        confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
+        iouThreshold: iouThreshold ?? this.iouThreshold,
+        cameraResolution: cameraResolution,
+        useGpu: useGpu,
+        isCustomToyModel: isCustomToyModel,
+      );
+
   /// Resolve which model to use. Checks the asset bundle for the custom
   /// toy model; returns a config pointed at it when present, else the
   /// COCO fallback. Cheap (one bundle probe) and safe to call on build.

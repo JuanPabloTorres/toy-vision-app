@@ -68,6 +68,10 @@ class YoloDetectionMapper {
     return out;
   }
 
+  /// Debug/diagnostic hook for Detection Lab. It exposes the same mapping
+  /// decision used by [map] without duplicating the mapper table in UI code.
+  String? mapLabelForDiagnostics(String rawClass) => _mapLabel(rawClass);
+
   /// Returns the registry label for a detector class name, or `null` to
   /// drop the detection. Case-insensitive. Checks, in order:
   /// 1. the custom toy-model prompt labels (`toy car`, `doll`, `ring
@@ -96,8 +100,10 @@ class YoloDetectionMapper {
   /// plugin surfaces them verbatim as `YOLOResult.className`.
   static const Map<String, String> toyModelLabels = {
     'teddy bear': 'stuffed_animal',
+    'teddy': 'stuffed_animal',
     'stuffed animal': 'stuffed_animal',
     'plush toy': 'stuffed_animal',
+    'plush': 'stuffed_animal',
     'doll': 'doll',
     'toy car': 'toy_car',
     'toy truck': 'toy_truck',
@@ -126,14 +132,24 @@ class YoloDetectionMapper {
     'toy dinosaur': 'action_figure',
     'ball': 'ball',
     'building blocks': 'building_blocks',
+    'block': 'building_blocks',
+    'blocks': 'building_blocks',
     'lego': 'building_blocks',
     'ring stacker': 'ring_stacker',
     'stacking rings': 'ring_stacker',
     'action figure': 'action_figure',
     'puzzle': 'puzzle',
     'red car': 'toy_car',
-    'red toy': 'object',
-    'toy': 'object',
+    'red toy': 'unknownToy',
+    'blue toy': 'unknownToy',
+    'small toy': 'unknownToy',
+    'plastic toy': 'unknownToy',
+    'toy': 'unknownToy',
+    'toys': 'unknownToy',
+    // NOTE: a bare 'object' label is deliberately NOT mapped here. The custom
+    // toy model's generic catch-all is too weak to treat as a toy without
+    // evidence, so it is dropped (returns null) like any non-toy class — the
+    // child's room is full of real objects we must not green-box.
   };
 
   /// COCO classes that essentially **are** toys in any context. The mapper
@@ -163,6 +179,13 @@ class YoloDetectionMapper {
     'train': 'toy_train',
     'airplane': 'toy_vehicle',
     'aeroplane': 'toy_vehicle',
+    // Device-audit finding (2026-06-04): RED toys are frequently mislabelled
+    // by the model as COCO's "fire hydrant" (a strongly-red class), then
+    // dropped here — so the red toy is never detected. Indoors on a child's
+    // floor a real fire hydrant is impossible, so this detection is a red toy.
+    // Keep it generic as `unknownToy` rather than guessing a vehicle name.
+    'fire hydrant': 'unknownToy',
+    'firehydrant': 'unknownToy',
   };
 
   /// Phase 6.6: the old "needs-review" bucket (kite/frisbee/skateboard/
@@ -188,6 +211,17 @@ class YoloDetectionMapper {
     'ring_stacker',
     'action_figure',
     'puzzle',
-    'object',
+    'unknownToy',
   };
+
+  /// Detector labels the mapper currently knows how to translate. This is not
+  /// the runtime model's internal label file; the plugin does not expose that
+  /// list. It is the app-side allowlist used to answer "did Toy Vision drop a
+  /// YOLO label it should have understood?"
+  static Set<String> get diagnosticInputLabels => {
+        ...toyModelLabels.keys,
+        ..._autoToys.keys,
+        ..._likelyToyProxies.keys,
+        ..._needsReview.keys,
+      };
 }

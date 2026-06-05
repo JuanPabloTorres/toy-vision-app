@@ -17,7 +17,7 @@ class SecondaryActionButton extends StatefulWidget {
     required this.label,
     required this.onPressed,
     this.leading,
-    this.fill = const Color(0x8C7EF0C3), // mint @ 55%
+    this.fill = AppColors.mint,
     this.labelColor = AppColors.textBlueDark,
     this.expand = true,
   });
@@ -39,14 +39,14 @@ class SecondaryActionButton extends StatefulWidget {
     Color color = AppColors.progressGreen,
   }) {
     return Container(
-      width: 32,
-      height: 32,
+      width: 34,
+      height: 34,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         color: AppColors.cardWhite,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 22),
+      child: Icon(icon, color: color, size: 23),
     );
   }
 
@@ -62,8 +62,8 @@ class _SecondaryActionButtonState extends State<SecondaryActionButton> {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadii.pill);
-    final topColor = _lighten(widget.fill, 0.08);
-    final baseColor = _darken(widget.fill, 0.20);
+    final topColor = _lighten(widget.fill, 0.14);
+    final baseColor = _darken(widget.fill, 0.12);
     final button = Material(
       color: Colors.transparent,
       borderRadius: radius,
@@ -89,10 +89,15 @@ class _SecondaryActionButtonState extends State<SecondaryActionButton> {
                 colors: [topColor, widget.fill],
               ),
               borderRadius: radius,
-              border: Border.all(color: Colors.white.withOpacity(0.45), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.7),
+                width: 1.8,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: _isPressed ? const Color(0x18000000) : const Color(0x26000000),
+                  color: _isPressed
+                      ? const Color(0x18000000)
+                      : const Color(0x2A000000),
                   blurRadius: _isPressed ? 6 : 10,
                   offset: Offset(0, _isPressed ? 2 : 4),
                 ),
@@ -100,20 +105,32 @@ class _SecondaryActionButtonState extends State<SecondaryActionButton> {
               color: _isPressed ? baseColor : widget.fill,
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
               child: Row(
                 mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (widget.leading != null) ...[
                     widget.leading!,
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: AppSpacing.md),
                   ],
-                  Text(
-                    widget.label,
-                    style: AppTypography.missionTitle.copyWith(
-                      color: widget.labelColor,
-                      fontWeight: FontWeight.w900,
+                  // Flexible so a long label + leading icon shrinks to fit the
+                  // available width instead of overflowing the pill (a 5px
+                  // horizontal overflow surfaced on "Ver mis estrellas").
+                  Flexible(
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.missionTitle.copyWith(
+                        color: widget.labelColor,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],

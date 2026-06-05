@@ -143,11 +143,38 @@
       "PowerShell(dart format lib/business/mission/cleanup_mission_status.dart lib/core/config/realtime_detection_config.dart lib/business/cleanup_guidance_service.dart lib/camera/controllers/toy_cleanup_controller.dart lib/camera/screens/toy_cleanup_camera_screen.dart)",
       "PowerShell(flutter analyze 2>&1 | Select-Object -Last 2; flutter test 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\tv_cleanarea_test.txt\" | Select-Object -Last 3)",
       "PowerShell(dart format lib/core/config/realtime_detection_config.dart lib/camera/controllers/toy_cleanup_controller.dart)",
-      "PowerShell(flutter analyze 2>&1 | Select-Object -Last 2; flutter test 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\tv_switch_test.txt\" | Select-Object -Last 3)"
+      "PowerShell(flutter analyze 2>&1 | Select-Object -Last 2; flutter test 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\tv_switch_test.txt\" | Select-Object -Last 3)",
+      "Bash(flutter --version)",
+      "Bash(grep -nA20 \"assets:\" pubspec.yaml)",
+      "Bash(git -C c:/Users/juanp/source/repos/Toy-Vision --no-pager diff --stat)",
+      "Bash('C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe' install *)",
+      "Bash('C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe' logcat *)",
+      "Bash('C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe' shell *)",
+      "Bash('C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe' exec-out *)",
+      "Bash(ADB=\"C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe\" *)",
+      "Bash(awk '/===AUDIT_MARK_START_MISSION===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(awk '/===MARK_NUEVA_MISION===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(awk '/===MARK_START2===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(awk '/===MARK_FULLFLOW_START===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash('C:\\\\Users\\\\juanp\\\\AppData\\\\Local/Android/Sdk/platform-tools/adb.exe' pull *)",
+      "Bash(python -)",
+      "Bash(export MSYS_NO_PATHCONV=1)",
+      "Bash(awk '/===FLOW_SCAN_START===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(awk '/CLEAN_RESTART/{f=1} f')",
+      "Bash(awk '/===AUTO_FLOW_TEST===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(grep -oE \"raw=[0-9]+ \\\\[[a-z A-Z,]*\\\\] mapped=[0-9]+ valid=[0-9]+\\( mapperDropped=[0-9]+ rulesReasons=\\\\{[^}]*\\\\}\\)?\")",
+      "Bash(awk '/===ID_SESSION_START===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(awk '{print $5, $6, $7, $8}')",
+      "Bash(grep -rniE \"de \\\\\\\\\\\\$|' de '|de \\\\{|N de M|collected de\" test/)",
+      "Bash(awk '/===B_TEST_3TOYS===/{f=1} f' /c/Users/juanp/AppData/Local/Temp/tv_live/flutter.log)",
+      "Bash(grep -E \"\\\\[E\\\\]$\")",
+      "Bash(grep -E \"\\\\[E\\\\]$|All tests passed|Some tests failed|Expected:|Actual:\")",
+      "Bash(grep -E \"\\\\[E\\\\]$|All tests passed|Some tests failed\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\juanp\\toyvision-dataset-v0_1",
-      "c:\\Users\\juanp\\.claude\\projects\\c--Users-juanp-source-repos-Toy-Vision\\memory"
+      "c:\\Users\\juanp\\.claude\\projects\\c--Users-juanp-source-repos-Toy-Vision\\memory",
+      "C:\\Users\\juanp\\AppData\\Local\\Temp"
     ]
   }
 }

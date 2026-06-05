@@ -46,6 +46,12 @@ void main() {
       expect(out.single.label, 'toy_car');
     });
 
+    test('fire hydrant → unknownToy (red toy mislabelled, recovered indoors)',
+        () {
+      final out = mapper.map([_yoloResult(className: 'fire hydrant')]);
+      expect(out.single.label, 'unknownToy');
+    });
+
     test('truck → toy_truck', () {
       final out = mapper.map([_yoloResult(className: 'truck')]);
       expect(out.single.label, 'toy_truck');
@@ -104,7 +110,26 @@ void main() {
         'stacking rings': 'ring_stacker',
         'action figure': 'action_figure',
         'puzzle': 'puzzle',
-        'toy': 'object',
+        'toy': 'unknownToy',
+        'red toy': 'unknownToy',
+        'blue toy': 'unknownToy',
+        'small toy': 'unknownToy',
+        'plastic toy': 'unknownToy',
+      };
+      cases.forEach((raw, expected) {
+        final out = mapper.map([_yoloResult(className: raw)]);
+        expect(out.single.label, expected, reason: 'for "$raw"');
+      });
+    });
+
+    test('recall pass: short toy-model aliases also map (teddy/plush/toys/'
+        'block/blocks)', () {
+      const cases = {
+        'teddy': 'stuffed_animal',
+        'plush': 'stuffed_animal',
+        'toys': 'unknownToy',
+        'block': 'building_blocks',
+        'blocks': 'building_blocks',
       };
       cases.forEach((raw, expected) {
         final out = mapper.map([_yoloResult(className: raw)]);
@@ -124,6 +149,12 @@ void main() {
   });
 
   group('YoloDetectionMapper — dropped classes', () {
+    test('generic object is not automatically a toy without toy-like evidence',
+        () {
+      final out = mapper.map([_yoloResult(className: 'object')]);
+      expect(out, isEmpty);
+    });
+
     test('drops person, chair, couch, bed, tv, laptop, cell phone', () {
       final dropped = [
         'person',
@@ -252,6 +283,18 @@ void main() {
               'producedLabels',
         );
       }
+    });
+  });
+
+  group('YoloDetectionMapper — diagnostics', () {
+    test('exposes toy-like mapping decisions without changing behavior', () {
+      expect(mapper.mapLabelForDiagnostics('toy'), 'unknownToy');
+      expect(mapper.mapLabelForDiagnostics('red toy'), 'unknownToy');
+      expect(mapper.mapLabelForDiagnostics('object'), isNull);
+      expect(
+        YoloDetectionMapper.diagnosticInputLabels,
+        containsAll(['toy', 'red toy', 'teddy bear']),
+      );
     });
   });
 }

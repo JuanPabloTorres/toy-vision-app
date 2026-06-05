@@ -41,9 +41,9 @@ class DetectionOverlayPainter extends CustomPainter {
   /// roughly one second, matching the controller's target-lost grace window.
   static const double _staleFadeFrames = 8;
 
-  /// A stale frame never disappears entirely: the mission invariant is that
-  /// the highlight is always shown. It just dims to "last seen here, move the
-  /// camera" instead of claiming the toy is right there.
+  /// Stale helper opacity remains bounded for remembered non-target overlays.
+  /// The mission controller does not pass a lost active target to this painter;
+  /// it hides the target box and asks the child to point the camera again.
   static const double _minStaleOpacity = 0.3;
 
   /// 1.0 while the detector still sees the toy this frame; fades toward
@@ -53,8 +53,7 @@ class DetectionOverlayPainter extends CustomPainter {
 
   /// Maps a frame's "frames missing" to a draw opacity. Pure + exposed for
   /// testing: 0 missing → fully bright (the detector sees it now); fades
-  /// linearly to [_minStaleOpacity] over [_staleFadeFrames] and never below,
-  /// so a remembered target dims to "last seen here" but is always shown.
+  /// linearly to [_minStaleOpacity] over [_staleFadeFrames] and never below.
   @visibleForTesting
   static double opacityForFramesMissing(int framesMissing) {
     if (framesMissing <= 0) return 1;
@@ -123,8 +122,7 @@ class DetectionOverlayPainter extends CustomPainter {
       // looking like just another framed toy.
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, const Radius.circular(14)),
-        Paint()
-          ..color = AppColors.boxTarget.withValues(alpha: 0.14 * opacity),
+        Paint()..color = AppColors.boxTarget.withValues(alpha: 0.14 * opacity),
       );
       _drawCornerFrame(
         canvas,

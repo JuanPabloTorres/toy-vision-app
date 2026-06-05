@@ -38,66 +38,103 @@ class MissionCompletePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.black.withValues(alpha: 0.80),
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: AppShadows.celebrationGlow,
-            ),
-            child: LottieStatusView(
-              assetPath: 'assets/lottie/mission_complete.json',
-              fallbackIcon: Icons.emoji_events_rounded,
-              size: 150,
-              fallbackColor: AppColors.gameYellow,
-            ),
+      // Center the card when it fits, but SCROLL instead of overflowing when
+      // vertical space is tight (short screens / landscape). Fixes the
+      // "BOTTOM OVERFLOWED" celebration-panel bug seen in landscape.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.xl,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const _RewardStars(),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            '¡Terminaste!',
-            textAlign: TextAlign.center,
-            style: AppTypography.celebrationHeadline.copyWith(
-              color: Colors.white,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (constraints.maxHeight - AppSpacing.xl * 2)
+                  .clamp(0.0, double.infinity),
             ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _summary,
-            textAlign: TextAlign.center,
-            style: AppTypography.coachMessage.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C2F67).withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.14),
+              width: 1.5,
             ),
+            boxShadow: AppShadows.celebrationGlow,
           ),
-          const SizedBox(height: AppSpacing.xxl),
-          if (onSeeStars != null) ...[
-            SecondaryActionButton(
-              label: 'Ver mis estrellas',
-              expand: false,
-              fill: const Color(0x33FFFFFF),
-              labelColor: Colors.white,
-              leading: SecondaryActionButton.circledIcon(
-                Icons.star_rounded,
-                color: AppColors.missionYellow,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: AppShadows.celebrationGlow,
+                ),
+                child: LottieStatusView(
+                  assetPath: 'assets/lottie/mission_complete.json',
+                  fallbackIcon: Icons.emoji_events_rounded,
+                  size: 150,
+                  fallbackColor: AppColors.gameYellow,
+                ),
               ),
-              onPressed: onSeeStars!,
+              const SizedBox(height: AppSpacing.lg),
+              const _RewardStars(),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                '¡Terminaste!',
+                textAlign: TextAlign.center,
+                style: AppTypography.celebrationHeadline.copyWith(
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _summary,
+                textAlign: TextAlign.center,
+                style: AppTypography.coachMessage.copyWith(
+                  color: Colors.white.withValues(alpha: 0.90),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              if (onSeeStars != null) ...[
+                SecondaryActionButton(
+                  label: 'Ver mis estrellas',
+                  expand: false,
+                  fill: AppColors.gameYellow,
+                  labelColor: AppColors.textBlueDark,
+                  leading: SecondaryActionButton.circledIcon(
+                    Icons.star_rounded,
+                    color: AppColors.gamePurple,
+                  ),
+                  onPressed: onSeeStars!,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              PrimaryActionButton(
+                label: 'Nueva misión',
+                color: AppColors.gameGreen,
+                fontSize: 18,
+                expand: false,
+                borderRadius: AppRadii.xl,
+                leading: const Icon(Icons.refresh_rounded, color: Colors.white),
+                onPressed: onNewMission,
+              ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          PrimaryActionButton(
-            label: 'Nueva misión',
-            color: AppColors.gameGreen,
-            fontSize: 18,
-            expand: false,
-            borderRadius: AppRadii.xl,
-            leading: const Icon(Icons.refresh_rounded, color: Colors.white),
-            onPressed: onNewMission,
           ),
-        ],
+        ),
       ),
     );
   }

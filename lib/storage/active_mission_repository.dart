@@ -19,7 +19,12 @@ abstract class ActiveMissionRepository {
   void begin(DateTime startedAt);
 
   /// Record the baseline toy count once the opening scan has settled.
-  void updateBaseline(int baselineToyCount);
+  void updateBaseline(
+    int baselineToyCount, {
+    DateTime? scanCompletedAt,
+    int? activeTargetId,
+    List<int> baselineToyIds = const [],
+  });
 
   /// End the active mission (completed, ended early, or reset).
   void clear();
@@ -39,14 +44,27 @@ class InMemoryActiveMissionRepository extends Notifier<ActiveMissionRecord?>
 
   @override
   void begin(DateTime startedAt) {
-    state = ActiveMissionRecord(startedAt: startedAt);
+    state = ActiveMissionRecord(
+      missionId: startedAt.millisecondsSinceEpoch.toString(),
+      startedAt: startedAt,
+    );
   }
 
   @override
-  void updateBaseline(int baselineToyCount) {
+  void updateBaseline(
+    int baselineToyCount, {
+    DateTime? scanCompletedAt,
+    int? activeTargetId,
+    List<int> baselineToyIds = const [],
+  }) {
     final active = state;
     if (active == null) return;
-    state = active.copyWith(baselineToyCount: baselineToyCount);
+    state = active.copyWith(
+      baselineToyCount: baselineToyCount,
+      scanCompletedAt: scanCompletedAt,
+      activeTargetId: activeTargetId,
+      baselineToyIds: baselineToyIds,
+    );
   }
 
   @override
@@ -55,7 +73,8 @@ class InMemoryActiveMissionRepository extends Notifier<ActiveMissionRecord?>
 
 /// Disk-backed subclass — a drop-in for the in-memory base (same `Notifier`
 /// shape) that seeds from disk and write-throughs every mutation.
-class PersistentActiveMissionRepository extends InMemoryActiveMissionRepository {
+class PersistentActiveMissionRepository
+    extends InMemoryActiveMissionRepository {
   /// Namespaced + versioned for forward-compatible migrations.
   static const String storageKey = 'toyvision.activeMission.v1';
 
@@ -80,8 +99,18 @@ class PersistentActiveMissionRepository extends InMemoryActiveMissionRepository 
   }
 
   @override
-  void updateBaseline(int baselineToyCount) {
-    super.updateBaseline(baselineToyCount);
+  void updateBaseline(
+    int baselineToyCount, {
+    DateTime? scanCompletedAt,
+    int? activeTargetId,
+    List<int> baselineToyIds = const [],
+  }) {
+    super.updateBaseline(
+      baselineToyCount,
+      scanCompletedAt: scanCompletedAt,
+      activeTargetId: activeTargetId,
+      baselineToyIds: baselineToyIds,
+    );
     _persist();
   }
 

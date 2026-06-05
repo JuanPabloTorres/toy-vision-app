@@ -49,6 +49,7 @@ void main() {
 
   test('ActiveMissionRecord persists only safe metadata', () {
     final json = ActiveMissionRecord(
+      missionId: 'mission-1',
       startedAt: DateTime(2026, 6, 3, 12),
       baselineToyCount: 4,
     ).toJson();

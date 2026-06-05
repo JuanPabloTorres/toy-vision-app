@@ -19,9 +19,9 @@ class RealtimeDetectionConfig {
     this.targetMinVisibleConfidence = 0.0,
     this.targetMatchMinScore = 0.25,
     this.targetMatchMaxCenterDistance = 0.25,
-    this.autoCollectMinMissedFrames = 16,
+    this.autoCollectMinMissedFrames = 10,
     this.autoCollectMinSecondsSinceLastSeen =
-        const Duration(milliseconds: 1500),
+        const Duration(milliseconds: 800),
     this.autoCollectEvaluatingFrames = 4,
     this.cleanAreaVerificationDuration = const Duration(milliseconds: 3000),
     this.allowTargetSwitchWhenNewValidToyVisible = true,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../business/app_audio_service.dart';
+import '../../business/mission/mission_goal.dart';
 import '../../camera/controllers/toy_cleanup_controller.dart';
 import '../app_assets.dart';
 import '../components/app_image.dart';
@@ -12,7 +13,6 @@ import '../navigation/app_bottom_navigation.dart';
 import '../navigation/app_shell.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
-import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
@@ -59,44 +59,52 @@ class MissionIntroScreen extends ConsumerWidget {
                   ),
                   // Content centers when it fits (normal phones, no scroll) and
                   // only scrolls on very small screens; the CTA stays pinned.
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            SizedBox(height: AppSpacing.md),
-                            Text(
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
                               '¡Preparados para la misión!',
                               textAlign: TextAlign.center,
                               style: AppTypography.celebrationHeadline,
                             ),
-                            SizedBox(height: AppSpacing.lg),
+                            const SizedBox(height: AppSpacing.md),
                             // Tobi speaks in his dialog bubble (mascot + bob
                             // animation + speech bubble) like every other
                             // surface — only the words change here.
                             RobotWelcome(
-                              message: 'Voy a ayudarte a encontrar juguetes.',
+                              message: ref
+                                  .watch(selectedMissionGoalProvider)
+                                  .startMessage,
                               showSpeaker: false,
-                              robotSize: 96,
+                              robotSize: 88,
                             ),
-                            SizedBox(height: AppSpacing.lg),
-                            _StepCard(
-                              number: 1,
-                              icon: Icons.photo_camera_rounded,
-                              text: 'Apunta la cámara',
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Elige tu reto',
+                              style: AppTypography.missionTitle,
                             ),
-                            SizedBox(height: AppSpacing.sm),
-                            _StepCard(
-                              number: 2,
-                              icon: Icons.center_focus_strong_rounded,
-                              text: 'Busca el juguete marcado',
-                            ),
-                            SizedBox(height: AppSpacing.sm),
-                            _StepCard(
-                              number: 3,
-                              icon: Icons.check_circle_rounded,
-                              text: 'Toca "Listo, ya lo guarde"',
-                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            for (final goal in MissionGoal.all) ...[
+                              _ChallengeCard(
+                                goal: goal,
+                                selected: ref
+                                        .watch(selectedMissionGoalProvider)
+                                        .challenge ==
+                                    goal.challenge,
+                                onTap: () {
+                                  ref
+                                      .read(appAudioServiceProvider)
+                                      .playButtonTap();
+                                  ref
+                                      .read(selectedMissionGoalProvider.notifier)
+                                      .state = goal;
+                                },
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                            ],
                           ],
                         ),
                       ),
@@ -124,66 +132,99 @@ class MissionIntroScreen extends ConsumerWidget {
   }
 
   void _begin(BuildContext context, WidgetRef ref) {
-    // Fun "let's go" sound, then move to the Mission tab and start scanning.
+    // Fun "let's go" sound, then move to the Mission tab and start the chosen
+    // challenge.
+    final goal = ref.read(selectedMissionGoalProvider);
     ref.read(appAudioServiceProvider).playPrimaryAction();
     ref.read(appTabProvider.notifier).state = AppTab.mission;
-    ref.read(toyCleanupControllerProvider.notifier).startMission();
+    ref.read(toyCleanupControllerProvider.notifier).startMission(goal: goal);
     Navigator.of(context).pop();
   }
 }
 
-/// A numbered step: badge + icon + short instruction, in a white card.
-class _StepCard extends StatelessWidget {
-  const _StepCard({
-    required this.number,
-    required this.icon,
-    required this.text,
+/// The challenge the child picked on the intro screen. Resets to the default
+/// (normal / 5) each time it is read fresh; the card taps update it.
+final selectedMissionGoalProvider =
+    StateProvider<MissionGoal>((ref) => MissionGoal.defaultGoal);
+
+/// A selectable challenge card: title, kid-facing target, and a basket badge.
+/// Highlighted when it is the current selection.
+class _ChallengeCard extends StatelessWidget {
+  const _ChallengeCard({
+    required this.goal,
+    required this.selected,
+    required this.onTap,
   });
 
-  final int number;
-  final IconData icon;
-  final String text;
+  final MissionGoal goal;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.cardWhite,
+    final target = goal.targetPickupGoal;
+    final badge = target == null ? '∞' : '$target';
+    return Material(
+      color: selected ? AppColors.missionYellow : AppColors.cardWhite,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      elevation: selected ? 4 : 1,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.missionYellow,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '$number',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : AppColors.missionYellow,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: selected
+                        ? AppColors.missionYellow
+                        : Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Icon(icon, color: AppColors.primaryBlue, size: 26),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTypography.coachMessage.copyWith(
-                color: AppColors.textBlueDark,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      style: AppTypography.missionTitle.copyWith(
+                        fontSize: 18,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.textBlueDark,
+                      ),
+                    ),
+                    Text(
+                      goal.startMessage,
+                      style: AppTypography.coachMessage.copyWith(
+                        fontSize: 13,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.textBlueDark,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              if (selected)
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

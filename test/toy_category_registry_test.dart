@@ -60,7 +60,7 @@ void main() {
       'toy_vehicle',
       'toy_outdoor',
       'book',
-      'object',
+      'unknownToy',
     ];
     for (final label in toyLabels) {
       expect(registry.isKnown(label), isTrue, reason: '$label must register');
@@ -68,5 +68,12 @@ void main() {
       expect(def.countsAsToy, isTrue, reason: '$label must count as toy');
       expect(def.isIgnored, isFalse, reason: '$label must not be ignored');
     }
+  });
+
+  test('generic object is not automatically treated as a toy', () {
+    final def = registry.lookup('object');
+    expect(registry.isKnown('object'), isFalse);
+    expect(def.countsAsToy, isFalse);
+    expect(def.isIgnored, isTrue);
   });
 }

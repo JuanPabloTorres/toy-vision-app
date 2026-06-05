@@ -16,7 +16,6 @@ import '../../ui/navigation/app_bottom_navigation.dart';
 import '../../ui/navigation/app_shell.dart';
 import '../../ui/overlays/detection_overlay_painter.dart';
 import '../../ui/panels/mission_complete_panel.dart';
-import '../../ui/theme/app_button_styles.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radii.dart';
 import '../../ui/theme/app_shadows.dart';
@@ -40,9 +39,17 @@ class ToyCleanupCameraScreen extends ConsumerStatefulWidget {
 }
 
 class _ToyCleanupCameraScreenState
-    extends ConsumerState<ToyCleanupCameraScreen> {
+    extends ConsumerState<ToyCleanupCameraScreen>
+    with WidgetsBindingObserver {
   final YOLOViewController _yoloController = YOLOViewController();
   String? _errorMessage;
+
+  /// Bumped every time the app resumes from the background. It is part of the
+  /// [YOLOView]'s key, so a resume forces Flutter to dispose the old (now
+  /// BLACK) native camera surface and create a fresh one — fixing the
+  /// "camera goes black after switching apps / locking the screen" bug, which
+  /// otherwise leaves the detector with no frames (raw=0, "no veo nada").
+  int _cameraEpoch = 0;
 
   /// Guards the one-shot celebration chime (played via AppAudioService).
   bool _playedCompletionSound = false;
@@ -62,6 +69,7 @@ class _ToyCleanupCameraScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _audio = ref.read(appAudioServiceProvider);
     // Entering the mission: start the fun playground loop. play() replaces the
     // Home theme on the shared player — a single op, no stop/play race.
@@ -70,8 +78,24 @@ class _ToyCleanupCameraScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _audio.stopMissionMusic();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appState) {
+    // Coming back from the background, the native camera surface is dead
+    // (black preview, no frames). Recreate the YOLOView by changing its key so
+    // the detector gets a live feed again. Also re-arm the native-overlay
+    // hiding, which the fresh surface needs.
+    if (appState == AppLifecycleState.resumed && mounted) {
+      setState(() {
+        _cameraEpoch++;
+        _overlaysHidden = false;
+        _hideAttempts = 0;
+      });
+    }
   }
 
   void _ensureNativeOverlaysHidden() {
@@ -86,6 +110,8 @@ class _ToyCleanupCameraScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(toyCleanupControllerProvider);
     final controller = ref.read(toyCleanupControllerProvider.notifier);
+    final showDiagnostics =
+        kDebugMode && ref.watch(missionDiagnosticsEnabledProvider);
 
     // Play the celebration chime EXACTLY once, on the transition into
     // `completed`. The guard survives rebuilds; it resets when a new mission
@@ -107,8 +133,22 @@ class _ToyCleanupCameraScreenState
         _audio.playButtonSuccess();
       }
     });
-    final config = ref.watch(resolvedYoloConfigProvider).valueOrNull ??
+    var config = ref.watch(resolvedYoloConfigProvider).valueOrNull ??
         YoloModelConfig.fallback;
+
+    // DEBUG-ONLY: a confidence-threshold override from the Detection Recall
+    // Lab. Inert in release and when unset (null) → identical to production.
+    // Changing it rebuilds YOLOView via the existing camera-epoch mechanism
+    // (a manual action, never per-frame — no live-loop cost).
+    if (kDebugMode) {
+      final override = ref.watch(debugDetectionConfidenceProvider);
+      if (override != null) {
+        config = config.copyWith(confidenceThreshold: override);
+      }
+      ref.listen<double?>(debugDetectionConfidenceProvider, (_, __) {
+        setState(() => _cameraEpoch++);
+      });
+    }
 
     return Stack(
       children: [
@@ -136,7 +176,10 @@ class _ToyCleanupCameraScreenState
                 _MissionTopBar(
                   title: _statusTitle(state),
                   collected: state.collectedToyCount,
-                  known: state.knownToyCount,
+                  goal: state.targetPickupGoal,
+                  personalBest: state.personalBestToyCount,
+                  hasReachedGoal: state.hasReachedGoal,
+                  isNewRecord: state.isNewRecord,
                   onBack: () {
                     _audio.playButtonTap();
                     ref.read(appTabProvider.notifier).state = AppTab.home;
@@ -156,6 +199,7 @@ class _ToyCleanupCameraScreenState
                   child: _CameraCard(
                     config: config,
                     controller: _yoloController,
+                    cameraEpoch: _cameraEpoch,
                     state: state,
                     errorMessage: _errorMessage,
                     onResult: (results) {
@@ -167,6 +211,12 @@ class _ToyCleanupCameraScreenState
                     onRetry: () =>
                         Navigator.of(context).pushReplacementNamed('/'),
                     onChildTap: controller.addChildTapToy,
+                    onToggleDiagnostics: () {
+                      if (!kDebugMode) return;
+                      final notifier =
+                          ref.read(missionDiagnosticsEnabledProvider.notifier);
+                      notifier.state = !notifier.state;
+                    },
                   ),
                 ),
                 // When the mission is complete the celebration panel (overlaid on
@@ -185,6 +235,15 @@ class _ToyCleanupCameraScreenState
             ),
           ),
         ),
+        if (showDiagnostics)
+          Positioned(
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            bottom: AppSpacing.sm,
+            child: SafeArea(
+              child: _MissionDiagnosticsPanel(snapshot: state.debugSnapshot),
+            ),
+          ),
       ],
     );
   }
@@ -203,7 +262,14 @@ class _ToyCleanupCameraScreenState
     _hideAttempts = 0;
     _ensureNativeOverlaysHidden();
     if (!mounted) return;
-    ref.read(toyCleanupControllerProvider.notifier).markModelReady();
+    final controller = ref.read(toyCleanupControllerProvider.notifier);
+    controller.recordModelLoaded(
+      ref.read(resolvedYoloConfigProvider).valueOrNull ??
+          YoloModelConfig.fallback,
+      loadedModelPath: modelPath,
+      task: task,
+    );
+    controller.markModelReady();
   }
 
   void _handleModelError(Object error, String message, YOLOTask? task) {
@@ -248,76 +314,128 @@ class _MissionTopBar extends StatelessWidget {
   const _MissionTopBar({
     required this.title,
     required this.collected,
-    required this.known,
+    required this.goal,
+    required this.personalBest,
+    required this.hasReachedGoal,
+    required this.isNewRecord,
     required this.onBack,
   });
 
   final String title;
   final int collected;
-  final int known;
+  final int? goal;
+  final int personalBest;
+  final bool hasReachedGoal;
+  final bool isNewRecord;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _RoundButton(icon: Icons.arrow_back_rounded, onTap: onBack),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.missionTitle.copyWith(fontSize: 20),
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.missionTitle.copyWith(fontSize: 20),
+              ),
             ),
           ),
         ),
-        _CountChip(collected: collected, known: known),
+        _ScorePanel(
+          collected: collected,
+          goal: goal,
+          personalBest: personalBest,
+          hasReachedGoal: hasReachedGoal,
+          isNewRecord: isNewRecord,
+        ),
       ],
     );
   }
 }
 
-/// "🧺 N de M" — toys collected out of those discovered so far (just "🧺 N"
-/// until the robot knows how many there are).
-class _CountChip extends StatelessWidget {
-  const _CountChip({required this.collected, required this.known});
+/// "🧺 N / meta" — the challenge score. Shows progress toward the GOAL (a
+/// challenge target, never "toys left in the room"), the personal record to
+/// beat, and celebrates reaching the goal / setting a new record. In free
+/// (record) mode there is no "/ meta" — every pickup is a record attempt.
+class _ScorePanel extends StatelessWidget {
+  const _ScorePanel({
+    required this.collected,
+    required this.goal,
+    required this.personalBest,
+    required this.hasReachedGoal,
+    required this.isNewRecord,
+  });
 
   final int collected;
-  final int known;
+  final int? goal;
+  final int personalBest;
+  final bool hasReachedGoal;
+  final bool isNewRecord;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.cardWhite,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const AppPlayfulIcon(
-            symbol: AppPlayfulIconSymbol.toyBasket,
-            size: 22,
-            color: AppColors.primaryBlue,
+    final reached = hasReachedGoal || isNewRecord;
+    final basketLabel = goal == null ? '$collected' : '$collected / $goal';
+    final subLabel = isNewRecord
+        ? '¡Nuevo récord!'
+        : (personalBest > 0 ? 'Récord: $personalBest' : null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          const SizedBox(width: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: reached ? AppColors.missionYellow : AppColors.cardWhite,
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppPlayfulIcon(
+                symbol: AppPlayfulIconSymbol.toyBasket,
+                size: 22,
+                color: reached ? Colors.white : AppColors.primaryBlue,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                basketLabel,
+                style: AppTypography.missionTitle.copyWith(
+                  fontSize: 18,
+                  color: reached ? Colors.white : AppColors.textBlueDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (subLabel != null) ...[
+          const SizedBox(height: 2),
           Text(
-            known > 0 ? '$collected de $known' : '$collected',
+            subLabel,
             style: AppTypography.missionTitle.copyWith(
-              fontSize: 18,
-              color: AppColors.textBlueDark,
+              fontSize: 11,
+              color: isNewRecord ? AppColors.missionYellow : Colors.white,
+              shadows: const [
+                Shadow(color: Colors.black54, blurRadius: 4),
+              ],
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -354,6 +472,7 @@ class _CameraCard extends StatelessWidget {
   const _CameraCard({
     required this.config,
     required this.controller,
+    required this.cameraEpoch,
     required this.state,
     required this.errorMessage,
     required this.onResult,
@@ -361,16 +480,22 @@ class _CameraCard extends StatelessWidget {
     required this.onModelError,
     required this.onRetry,
     required this.onChildTap,
+    required this.onToggleDiagnostics,
   });
 
   final YoloModelConfig config;
   final YOLOViewController controller;
+
+  /// Resume epoch — part of the [YOLOView] key so the native camera surface is
+  /// recreated when the app returns from the background (fixes the black feed).
+  final int cameraEpoch;
   final LiveDetectionState state;
   final String? errorMessage;
   final void Function(List<YOLOResult>) onResult;
   final Future<void> Function(String, YOLOTask?) onModelLoad;
   final void Function(Object, String, YOLOTask?) onModelError;
   final VoidCallback onRetry;
+  final VoidCallback onToggleDiagnostics;
 
   /// Called with normalized (0..1) tap coordinates when the child taps a toy
   /// the model missed (fallback / help only).
@@ -411,6 +536,9 @@ class _CameraCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             YOLOView(
+              // Changing the key on resume disposes the dead native camera
+              // surface and creates a fresh, live one.
+              key: ValueKey('yoloview-$cameraEpoch'),
               modelPath: config.modelPath,
               task: config.task,
               controller: controller,
@@ -472,10 +600,13 @@ class _CameraCard extends StatelessWidget {
                   ),
                 ),
               ),
-            const Positioned(
+            Positioned(
               top: AppSpacing.sm,
               left: AppSpacing.sm,
-              child: _ScanBadge(),
+              child: GestureDetector(
+                onLongPress: onToggleDiagnostics,
+                child: const _ScanBadge(),
+              ),
             ),
             // Coach moved OUT of the camera (now a strip above it) so nothing
             // covers the preview.
@@ -649,6 +780,140 @@ class _CompletedOverlay extends StatelessWidget {
   }
 }
 
+class _MissionDiagnosticsPanel extends StatelessWidget {
+  const _MissionDiagnosticsPanel({required this.snapshot});
+
+  final MissionDebugSnapshot? snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = snapshot;
+    if (s == null) return const SizedBox.shrink();
+    String score(double? value) =>
+        value == null ? '-' : value.toStringAsFixed(2);
+    String fps(double? value) => value == null ? '-' : value.toStringAsFixed(1);
+    String confidence(double? value) =>
+        value == null ? '-' : value.toStringAsFixed(2);
+    String reasons(Map<String, int> value) {
+      if (value.isEmpty) return '-';
+      return value.entries.map((e) => '${e.key}:${e.value}').join(', ');
+    }
+
+    final rows = s.rawDetections.take(5).toList(growable: false);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: DefaultTextStyle(
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            height: 1.25,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Detection Lab'),
+              Text('modelLoaded=${s.modelLoaded} custom=${s.isCustomToyModel} '
+                  'task=${s.modelTask ?? '-'}'),
+              Text('configured=${s.configuredModelPath}'),
+              Text('loaded=${s.loadedModelPath ?? '-'}'),
+              Text('threshold=${s.modelConfidenceThreshold.toStringAsFixed(2)} '
+                  'iou=${s.modelIouThreshold.toStringAsFixed(2)} '
+                  'res=${s.cameraResolution}'),
+              Text('labels=${s.loadedLabelCount} '
+                  '[${s.loadedLabelsPreview.join(', ')}]'),
+              Text('flow=${s.flowState.name} target=${s.activeTargetId ?? '-'} '
+                  'visible=${s.visibleToyCount} baseline=${s.baselineToyCount ?? '-'} '
+                  'remaining=${s.remainingToyCount}'),
+              // Detection funnel — read left to right; the first column that
+              // drops to 0 is where recall dies.
+              Text('FUNNEL raw=${s.rawDetectionsCount} '
+                  '→ mapped=${s.mappedDetectionsCount} '
+                  '→ valid=${s.validToyCount} '
+                  '→ visible=${s.visibleToyCount} '
+                  '→ green=${s.greenOverlayCount}'),
+              Text(
+                'VERDICT ${s.recallVerdict}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text('unknown=${s.unknownToyCount} '
+                  'rejected=${s.rejectedDetectionsCount}'),
+              Text('rejectReasons=${reasons(s.rejectionReasons)}'),
+              for (final row in rows)
+                Text('${row.rawLabel}:${confidence(row.confidence)} '
+                    '-> ${row.mappedLabel ?? '-'} '
+                    'id=${row.identityType ?? '-'} '
+                    'toy=${row.countsAsToy} '
+                    'reject=${row.rejectReason ?? '-'}'),
+              Text(
+                  'fps=${fps(s.approxFps)} frameMs=${s.frameIntervalMs ?? '-'} '
+                  'targetConf=${confidence(s.targetConfidence)} '
+                  'miss=${s.targetMissingFrameCount}'),
+              Text('scene=${s.sceneStabilityStatus?.name ?? '-'} '
+                  'reason=${s.sceneStabilityReason?.name ?? '-'} '
+                  'score=${score(s.sceneStabilityScore)}'),
+              Text('guard=${s.guardDecision} reason=${s.guardReason} '
+                  'completedAllowed=${s.completedAllowed}'),
+              const _ThresholdStepper(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// DEBUG-ONLY confidence-threshold A/B control for the Detection Recall Lab.
+/// Taps set [debugDetectionConfidenceProvider]; "auto" clears it back to the
+/// model's resolved threshold. Each change rebuilds YOLOView so the new floor
+/// applies to the next scan. Lets recall be calibrated with evidence instead
+/// of guessing — without editing production defaults.
+class _ThresholdStepper extends ConsumerWidget {
+  const _ThresholdStepper();
+
+  static const List<double> _options = [0.15, 0.20, 0.25, 0.30];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(debugDetectionConfidenceProvider);
+    Widget chip(String label, double? value) {
+      final selected = current == value;
+      return GestureDetector(
+        onTap: () =>
+            ref.read(debugDetectionConfidenceProvider.notifier).state = value,
+        child: Container(
+          margin: const EdgeInsets.only(right: 6, top: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.missionYellow : Colors.white24,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.black : Colors.white,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        const Text('confThr: '),
+        chip('auto', null),
+        for (final v in _options) chip(v.toStringAsFixed(2), v),
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Action row (varies by state)
 // ---------------------------------------------------------------------------
@@ -694,29 +959,10 @@ class _ActionRow extends StatelessWidget {
 
       case CleanupMissionStatus.active:
       case CleanupMissionStatus.targetLost:
-        // Clear hierarchy: "Listo, ya lo guarde" is the big, full-width
-        // primary; "No encuentro ese juguete" is a small secondary underneath.
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PrimaryActionButton(
-              label: 'Listo, ya lo guarde',
-              color: AppColors.progressGreen,
-              fontSize: 20,
-              leading: _circledIcon(Icons.check_rounded),
-              // Success chime is played by the screen when the collected count
-              // rises, so manual and AUTOMATIC pickups celebrate identically.
-              onPressed: _sfx(controller.collectCurrentToy),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextButton.icon(
-              onPressed: _sfx(controller.needHelp),
-              icon: const Icon(Icons.touch_app_rounded, size: 18),
-              label: const Text('No encuentro ese juguete'),
-              style: AppButtonStyles.text(color: AppColors.textBlueDark),
-            ),
-          ],
-        );
+        // FULLY AUTOMATIC: the robot detects the pickup and counts it by
+        // itself. There is no manual "I picked it up" / "I need help" button —
+        // the child just grabs the marked toy and the basket rises on its own.
+        return const _AutoPickupHint();
 
       case CleanupMissionStatus.confirmingPickup:
         // Rare manual fallback when the robot can't decide if the toy was
@@ -744,28 +990,11 @@ class _ActionRow extends StatelessWidget {
         );
 
       case CleanupMissionStatus.askingIfMoreToys:
-        // Two-up: no leading icons + smaller text so both fit without clipping.
-        return Row(
-          children: [
-            Expanded(
-              child: PrimaryActionButton(
-                label: 'Sí, veo otro',
-                color: AppColors.primaryBlue,
-                fontSize: 16,
-                onPressed: _sfx(controller.childSeesAnotherToy),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: PrimaryActionButton(
-                label: 'No, terminé',
-                color: AppColors.progressGreen,
-                fontSize: 16,
-                onPressed: _sfx(controller.childDone, success: true),
-              ),
-            ),
-          ],
-        );
+        // FULLY AUTOMATIC: no "¿Ves otro? / Terminé" buttons. The robot keeps
+        // searching for the next toy on its own and finishes by itself once the
+        // area has been clean long enough. (This state is no longer entered by
+        // the automatic flow; the indicator is a safe fallback.)
+        return const _ScanningIndicator();
 
       case CleanupMissionStatus.waitingForChildTap:
         // Automatic-first: the primary action re-scans with YOLO. Tapping a
@@ -822,6 +1051,49 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
+/// The bottom strip during the active mission: a calm, non-interactive hint
+/// that the robot counts pickups by itself. Replaces the old "Ya lo guardé" /
+/// "Necesito ayuda" buttons — the active mission is now fully automatic.
+class _AutoPickupHint extends StatelessWidget {
+  const _AutoPickupHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.cardWhite.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        boxShadow: AppShadows.card,
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppPlayfulIcon(
+            symbol: AppPlayfulIconSymbol.toyBasket,
+            size: 22,
+            color: AppColors.primaryBlue,
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              'Recoge el juguete marcado. ¡Yo lo cuento solo!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textBlueDark,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The small translucent-white circle that wraps the leading icon on every
 /// mission action pill — keeps the icons visually consistent across states.
 Widget _circledIcon(IconData icon) {
@@ -868,3 +1140,12 @@ class _ScanningIndicator extends StatelessWidget {
     );
   }
 }
+
+final missionDiagnosticsEnabledProvider = StateProvider<bool>((ref) => false);
+
+/// DEBUG-ONLY native YOLO confidence-threshold override for the Detection
+/// Recall Lab. `null` = use the resolved model's own threshold (production
+/// behavior, untouched). When set in debug, the camera card rebuilds YOLOView
+/// with this floor so recall can be A/B-tested live (0.15/0.20/0.25/0.30)
+/// WITHOUT editing production defaults. Never read outside `kDebugMode`.
+final debugDetectionConfidenceProvider = StateProvider<double?>((ref) => null);
