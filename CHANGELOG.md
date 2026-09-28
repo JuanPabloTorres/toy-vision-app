@@ -3,6 +3,20 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.2] - 2026-09-28
+
+### Fixed
+
+- Las seis frases de Tobi reciben un tratamiento sintético juvenil de tono y
+  formantes para evitar el timbre de narrador adulto y sonar más infantil,
+  ligero y juguetón sin depender de servicios externos.
+
+### Release notes
+
+- Versión Flutter: `2.4.2+9`.
+- La voz se genera y procesa offline; no se graba ni distribuye la voz real de
+  ningún niño.
+
 ## [2.4.1] - 2026-09-28
 
 ### Fixed
