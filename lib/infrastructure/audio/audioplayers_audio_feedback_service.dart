@@ -33,6 +33,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
   static const _musicGain = 0.65;
   static const _duckedMusicGain = 0.28;
   static const _voiceGain = 0.95;
+  static const _tapLeadIn = Duration(milliseconds: 180);
   static const _voiceAssets = <AudioCue, String>{
     AudioCue.gameReady: 'audio/tobi_session_start.wav',
     AudioCue.roomVerification: 'audio/tobi_room_verification.wav',
@@ -63,6 +64,12 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
     _lastCueAt = now;
     await _attempt(() async {
       await _ensureConfigured();
+      final leadWithTap = cue == AudioCue.gameReady &&
+          enabledChannels.contains(AudioChannel.effects);
+      if (leadWithTap) {
+        await _playEffect(cue);
+        await Future<void>.delayed(_tapLeadIn);
+      }
       if (cue == AudioCue.cleanupCompleted) {
         await _music.stop();
         _musicPlaying = false;
@@ -72,7 +79,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
       }
 
       final playback = <Future<void>>[];
-      if (enabledChannels.contains(AudioChannel.effects)) {
+      if (enabledChannels.contains(AudioChannel.effects) && !leadWithTap) {
         playback.add(_playEffect(cue));
       }
       if (enabledChannels.contains(AudioChannel.voice)) {
@@ -105,7 +112,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
 
   Future<void> _playEffect(AudioCue cue) async {
     final (asset, gain) = switch (cue) {
-      AudioCue.gameReady || AudioCue.uiTap => (_tap, 0.72),
+      AudioCue.gameReady || AudioCue.uiTap => (_tap, 0.95),
       AudioCue.toyFound ||
       AudioCue.toyCollected ||
       AudioCue.encouragement ||

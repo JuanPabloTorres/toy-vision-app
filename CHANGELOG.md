@@ -3,6 +3,19 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.4] - 2026-09-28
+
+### Fixed
+
+- El clic tipo burbuja ahora es más largo, fuerte y distinguible en el altavoz
+  de un teléfono.
+- Al iniciar una misión, el clic recibe un breve espacio antes de que entren la
+  música y la voz de Tobi, evitando que quede enmascarado.
+
+### Release notes
+
+- Versión Flutter: `2.4.4+11`.
+
 ## [2.4.3] - 2026-09-28
 
 ### Fixed

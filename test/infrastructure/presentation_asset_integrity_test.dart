@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -88,5 +89,27 @@ void main() {
       expect(peak, lessThan(32760), reason: path);
       expect(peak, greaterThan(16000), reason: path);
     }
+  });
+
+  test('tap bubble is long and strong enough for a phone speaker', () async {
+    final audio = await rootBundle.load('assets/audio/button_tap_pop.wav');
+    expect(audio.getUint16(20, Endian.little), 1);
+    expect(audio.getUint16(22, Endian.little), 1);
+    expect(audio.getUint16(34, Endian.little), 16);
+    final sampleRate = audio.getUint32(24, Endian.little);
+    final sampleCount = audio.getUint32(40, Endian.little) ~/ 2;
+    final durationSeconds = sampleCount / sampleRate;
+    expect(durationSeconds, inInclusiveRange(0.2, 0.4));
+
+    var peak = 0;
+    var sumSquares = 0.0;
+    for (var offset = 44; offset + 1 < audio.lengthInBytes; offset += 2) {
+      final sample = audio.getInt16(offset, Endian.little).abs();
+      if (sample > peak) peak = sample;
+      sumSquares += sample * sample;
+    }
+    final rms = math.sqrt(sumSquares / sampleCount);
+    expect(peak, greaterThan(23000));
+    expect(rms, greaterThan(5000));
   });
 }
