@@ -15,6 +15,9 @@ formato sigue Semantic Versioning.
 
 - El diagnóstico de cámara queda excluido de builds release y permanece
   separado del modo infantil.
+- El manifiesto atribuye las voces actuales a su generador real, Parler-TTS
+  Mini Multilingual v1.1 bajo Apache 2.0, y retira la referencia obsoleta a
+  Piper/CarlFM.
 
 ### Fixed
 
