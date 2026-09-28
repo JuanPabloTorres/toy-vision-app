@@ -108,6 +108,8 @@ class _DeveloperVisionPainter extends CustomPainter {
         'MISS #${track.id} ${evidence.missingDuration.inMilliseconds}ms '
         'gyro:${evidence.deviceMotion.toStringAsFixed(2)} '
         'bg:${evidence.backgroundRevealScore.toStringAsFixed(2)} '
+        'direct:${evidence.directPickupEvidence ? 'Y' : 'N'} '
+        'camLoss:${track.lostDuringCameraMotion ? 'Y' : 'N'} '
         'depth:${evidence.depthChangeScore?.toStringAsFixed(2) ?? '-'} '
         '${evidence.rejectionReasons.join('|')}',
       );

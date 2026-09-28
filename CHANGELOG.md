@@ -3,6 +3,20 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.5] - 2026-09-28
+
+### Fixed
+
+- Una recogida rápida que ocurre entre frames puede confirmarse mediante el
+  fondo estable revelado en la región original, sin exigir que el detector haya
+  visto primero el objeto en movimiento.
+- Una desaparición iniciada durante movimiento de cámara conserva esa causa y
+  nunca usa la vía rápida de recogida, aunque el teléfono se estabilice luego.
+
+### Release notes
+
+- Versión Flutter: `2.4.5+12`.
+
 ## [2.4.4] - 2026-09-28
 
 ### Fixed

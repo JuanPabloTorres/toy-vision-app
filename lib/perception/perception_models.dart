@@ -124,6 +124,7 @@ class DisappearanceEvidence {
     required this.stableSceneWindow,
     required this.interactionObserved,
     required this.reidentificationCandidate,
+    this.directPickupEvidence = false,
     this.deviceMotion = 0,
     this.backgroundRevealScore = 0,
     this.depthChangeScore,
@@ -147,6 +148,7 @@ class DisappearanceEvidence {
   final bool stableSceneWindow;
   final bool interactionObserved;
   final bool reidentificationCandidate;
+  final bool directPickupEvidence;
   final double deviceMotion;
   final double backgroundRevealScore;
   final double? depthChangeScore;

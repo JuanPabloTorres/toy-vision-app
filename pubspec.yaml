@@ -1,7 +1,7 @@
 name: toyvision_realtime
 description: Tobi Ordena — juego infantil que convierte recoger juguetes y objetos en una aventura.
 publish_to: "none"
-version: 2.4.4+11
+version: 2.4.5+12
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

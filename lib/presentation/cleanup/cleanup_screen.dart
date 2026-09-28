@@ -704,7 +704,7 @@ class _VisionCoachCard extends StatelessWidget {
               (evidence.missingDuration.inMilliseconds / 1500).clamp(0.0, 1.0);
           progress =
               frameProgress < timeProgress ? frameProgress : timeProgress;
-          if (!evidence.interactionObserved) {
+          if (!evidence.interactionObserved && !evidence.directPickupEvidence) {
             body =
                 'Recógelo despacio dentro del cuadro para que Tobi vea el movimiento.';
           } else if (!evidence.stableSceneWindow) {

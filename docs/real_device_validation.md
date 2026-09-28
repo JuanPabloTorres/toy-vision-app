@@ -62,6 +62,8 @@ coverage sectors, background-reveal score, optional depth score and every
 | 2.4.4 diagnostic reproduction | PASS_DIAGNOSTIC on SM-S942U: 438 metadata-only frames / 109.60 s; the mission inventory grew from 3 to 5 during the pan, with 7 missing tracks, 0 collections and 0 completions. This candidate preceded the final inventory-admission fix |
 | Final 2.4.4 artifacts | PASS_BUILD: profile SHA-256 `46C24B1C2911109280E511F93ADEA6190BC52C06803AC1E5CE6409C0B08FEB79`; release SHA-256 `DD77393F6F65E484BE69C1CCBCA42E4A1EE8A27E835755C7B1C7F8E566390F94`; both report 2.4.4 (11) |
 | Final 2.4.4 profile installation/camera | NOT_EXECUTED: the exact final implementation has not yet been exercised on camera |
+| Final 2.4.5 artifacts | PASS_BUILD: profile SHA-256 `8BFE87D3CC74D86145DA0ABF655CC848A1ACA4FB2DC347E3F0CA3600A04A9CC1`; release SHA-256 `4C261C4E30EEE5D172640EE620B6906A0B629B01E096DAAC907F5F5C637E9F63`; both report 2.4.5 (12) |
+| Fast pickup between frames | PASS_REPLAY: exactly one collection within 3 s, followed by final sweep and exactly one completion; physical execution of 2.4.5 remains pending |
 | Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in the 2.4.4 code and final release binary inspection must exclude both diagnostic strings |
 | Pan/scene-anchor safety | PARTIAL: no false collection occurred, but the pre-fix 2.4.4 trace reproduced inventory inflation during pan; automated regression covers the final correction, physical confirmation remains pending |
 | Physical detector recall | FAIL in observed scene: snapshot 2 with at least 3 visible toys |

@@ -34,8 +34,9 @@ class ToyTracker {
   TrackingUpdate update(
     List<ToyObservation> observations,
     DateTime timestamp,
-    SceneState sceneState,
-  ) {
+    SceneState sceneState, {
+    double sceneMotion = 0,
+  }) {
     // Open-set regions are proposals, not semantic toy observations. They may
     // support fusion, but cannot move or keep a confirmed identity alive.
     final trackingObservations = observations
@@ -106,6 +107,7 @@ class ToyTracker {
         lastInteractionAt: semanticMovementObserved && movementEvidence >= 0.12
             ? timestamp
             : previous.lastInteractionAt,
+        lostDuringCameraMotion: false,
         clearMissingSince: true,
       );
       transitions.add(
@@ -141,6 +143,10 @@ class ToyTracker {
                 : timestamp)
             : null,
         clearMissingSince: !canSearch,
+        // Preserve how this disappearance started. Once camera motion caused
+        // the loss, later stationary frames cannot turn it into a pickup.
+        lostDuringCameraMotion:
+            previous.lostDuringCameraMotion || !canSearch || sceneMotion > 0.06,
       );
       if (missingFrames == 1) {
         transitions.add(
