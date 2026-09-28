@@ -202,8 +202,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
               state: cleanup,
               onLeave: _leave,
               onRetry: _retry,
-              onBeginDiscovery: () =>
-                  ref.read(cleanupControllerProvider.notifier).beginDiscovery(),
+              onBeginDiscovery: _beginDiscovery,
               onReplay: () =>
                   ref.read(cleanupControllerProvider.notifier).start(),
             ),
@@ -211,6 +210,16 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
         ),
       ),
     );
+  }
+
+  void _beginDiscovery() {
+    unawaited(
+      _audio.play(
+        AudioCue.uiTap,
+        enabledChannels: ref.read(enabledAudioChannelsProvider),
+      ),
+    );
+    ref.read(cleanupControllerProvider.notifier).beginDiscovery();
   }
 
   YOLOStreamingConfig _streamingConfig(int targetFps) =>

@@ -58,6 +58,8 @@ void main() {
     await tester.tap(find.byKey(const Key('start-cleanup')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
+    expect(audio.cues, [AudioCue.gameReady]);
+    expect(audio.enabledChannels.single, allAudioChannels);
     expect(find.text('¡Vamos a recoger!'), findsOneWidget);
     expect(find.text('Buscando cosas por recoger…'), findsNothing);
 
@@ -68,6 +70,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('begin-room-scan')));
     await tester.pump();
+    expect(audio.cues, [AudioCue.gameReady, AudioCue.uiTap]);
     expect(find.text('Preparando la visión…'), findsOneWidget);
     expect(find.text('Encontrar'), findsOneWidget);
     expect(find.text('Recoger'), findsOneWidget);
@@ -134,6 +137,8 @@ void main() {
 
 class _SilentAudio implements AudioFeedbackService {
   final List<AudioChannel> stopped = [];
+  final List<AudioCue> cues = [];
+  final List<Set<AudioChannel>> enabledChannels = [];
 
   @override
   Future<void> dispose() async {}
@@ -142,7 +147,10 @@ class _SilentAudio implements AudioFeedbackService {
   Future<void> play(
     AudioCue cue, {
     Set<AudioChannel> enabledChannels = allAudioChannels,
-  }) async {}
+  }) async {
+    cues.add(cue);
+    this.enabledChannels.add(enabledChannels);
+  }
 
   @override
   Future<void> setVolume(double volume) async {}
