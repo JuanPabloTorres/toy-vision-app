@@ -73,7 +73,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
     WidgetsBinding.instance.removeObserver(this);
     _healthTimer?.cancel();
     unawaited(_deviceMotion.stop());
-    unawaited(_audio.stop(AudioChannel.music));
+    _stopAllAudio();
     super.dispose();
   }
 
@@ -263,8 +263,18 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
   }
 
   void _resetSession() {
-    ref.read(audioFeedbackServiceProvider).stop(AudioChannel.music);
+    _stopAllAudio();
     ref.read(cleanupControllerProvider.notifier).reset();
+  }
+
+  void _stopAllAudio() {
+    unawaited(
+      Future.wait([
+        _audio.stop(AudioChannel.music),
+        _audio.stop(AudioChannel.effects),
+        _audio.stop(AudioChannel.voice),
+      ]),
+    );
   }
 }
 

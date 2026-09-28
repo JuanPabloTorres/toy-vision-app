@@ -12,6 +12,7 @@ void main() {
       overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
     );
     await first.read(appSettingsProvider.notifier).setMusic(false);
+    await first.read(appSettingsProvider.notifier).setVoice(false);
     await first.read(appSettingsProvider.notifier).setAnimations(false);
     first.dispose();
 
@@ -21,6 +22,7 @@ void main() {
     addTearDown(restored.dispose);
 
     expect(restored.read(appSettingsProvider).musicEnabled, isFalse);
+    expect(restored.read(appSettingsProvider).voiceEnabled, isFalse);
     expect(restored.read(appSettingsProvider).animationsEnabled, isFalse);
     expect(restored.read(appSettingsProvider).kidModeEnabled, isTrue);
   });

@@ -44,14 +44,28 @@ class SettingsScreen extends ConsumerWidget {
                   assetPath: AppAssets.soundIcon,
                   title: 'Sonidos',
                   value: settings.soundEnabled,
-                  onChanged: controller.setSound,
+                  onChanged: (value) async {
+                    await controller.setSound(value);
+                    if (!value) {
+                      await ref
+                          .read(audioFeedbackServiceProvider)
+                          .stop(AudioChannel.effects);
+                    }
+                  },
                 ),
                 _SettingSwitch(
                   icon: Icons.record_voice_over_rounded,
                   assetPath: AppAssets.voiceIcon,
                   title: 'Voz de Tobi',
                   value: settings.voiceEnabled,
-                  onChanged: controller.setVoice,
+                  onChanged: (value) async {
+                    await controller.setVoice(value);
+                    if (!value) {
+                      await ref
+                          .read(audioFeedbackServiceProvider)
+                          .stop(AudioChannel.voice);
+                    }
+                  },
                 ),
                 _SettingSwitch(
                   icon: Icons.music_note_rounded,
