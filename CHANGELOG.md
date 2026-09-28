@@ -3,6 +3,22 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.3] - 2026-09-28
+
+### Fixed
+
+- La voz de Tobi deja de derivarse del locutor adulto CarlFM: las seis frases
+  se regeneran con Parler-TTS Multilingual como un personaje infantil,
+  brillante, alegre y juguetón en español.
+- Las semillas quedan fijadas y cada frase se valida con reconocimiento de voz
+  antes de empaquetarse para evitar palabras omitidas o inventadas.
+
+### Release notes
+
+- Versión Flutter: `2.4.3+10`.
+- La síntesis se realiza offline durante desarrollo con un modelo Apache 2.0;
+  la aplicación sólo incluye WAV locales y no descarga el modelo.
+
 ## [2.4.2] - 2026-09-28
 
 ### Fixed

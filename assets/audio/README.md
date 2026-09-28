@@ -7,49 +7,36 @@ Toy Vision. `tobi_adventure_loop.wav` is reproducible with:
 C:\DevTools\flutter\bin\cache\dart-sdk\bin\dart.exe run tools/audio_adventure_gen.dart
 ```
 
-Tobi's Spanish voice clips were synthesized offline with Piper 2023.11.14-2
-(MIT) and the `es_ES-carlfm-x_low` voice. Its model card identifies CarlFM's
-source dataset as public domain. Neither the TTS runtime nor its model ships in
-the application; only the generated PCM WAV clips are bundled.
+Tobi's Spanish voice clips are synthesized offline with Parler-TTS Mini
+Multilingual v1.1. The model and generator are Apache 2.0 licensed. The model
+supports Spanish and text descriptions for pitch, age, pace and delivery.
+Neither the Python runtime nor the 3.75 GB model ships in the application;
+only the generated mono PCM WAV clips are bundled.
 
-Generation used:
-
-```text
---length_scale 1.13 --noise_scale 0.62 --noise_w 0.72 --sentence_silence 0.08
-```
-
-The exact original phrases are:
-
-- `tobi_session_start.wav`: “¡Vamos! Mueve la cámara despacito. Yo te ayudaré
-  a encontrar cada juguete.”
-- `tobi_toy_collected.wav`: “¡Sí! ¡Juguete guardado! ¡Buen trabajo!”
-- `tobi_almost_finished.wav`: “¡Genial! Ya falta poquito.”
-- `tobi_room_verification.wav`: “¡Una última mirada! Muéstrame cada rincón.”
-- `tobi_cleanup_completed.wav`: “¡Lo logramos! ¡El cuarto quedó fantástico!”
-- `tobi_detection_uncertain.wav`: “Espera un poquito. Estoy mirando otra vez.”
-
-After fresh synthesis, apply Tobi's synthetic youthful character treatment and
-normalize the PCM files with:
+Generate the pinned clips on a CUDA-capable development machine, then trim and
+normalize them without altering the synthesized timbre:
 
 ```powershell
+C:\Users\estju\.local\bin\uv.exe run --python 3.11 tools/generate_tobi_voice.py
 C:\DevTools\flutter\bin\cache\dart-sdk\bin\dart.exe run tools/audio_voice_postprocess.dart
 ```
 
-The character pass raises pitch by five semitones, including formants, to move
-the adult source away from a narrator sound and toward Tobi's light, playful
-robot-child voice. It intentionally operates offline and shortens delivery
-back to a lively natural pace; run it only once after regenerating the original
-Piper output. The slower `length_scale` above compensates for that pitch pass.
+The generator pins the model revision, Python dependencies and accepted seed
+for each phrase. Its character description asks for Olivia to speak in the
+bright, high-pitched voice of a cheerful young girl with a playful robot-game
+delivery. The exact phrases are:
 
-- Runtime: https://github.com/rhasspy/piper/releases/tag/2023.11.14-2
-- Voice model: https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/es/es_ES/carlfm/x_low
-- Model card: https://huggingface.co/rhasspy/piper-voices/blob/v1.0.0/es/es_ES/carlfm/x_low/MODEL_CARD
+- `tobi_session_start.wav`: “Vamos, mueve la cámara despacito, yo te ayudo a
+  encontrar cada juguete.”
+- `tobi_toy_collected.wav`: “Sí, lo guardaste, buen trabajo.”
+- `tobi_almost_finished.wav`: “Genial, ya falta poquito.”
+- `tobi_room_verification.wav`: “Una última mirada. Muéstrame cada rincón.”
+- `tobi_cleanup_completed.wav`: “Lo logramos. El cuarto quedó fantástico.”
+- `tobi_detection_uncertain.wav`: “Espera un poquito. Estoy mirando otra vez.”
 
-Pinned build inputs (SHA-256):
-
-- Piper Windows archive: `F3C58906402B24F3A96D92145F58ACBA6D86C9B5DB896D207F78DC80811EFCEA`
-- `es_ES-carlfm-x_low.onnx`: `D69677323A907CD4963F42B29C20A98B5D6BFA7F3E64DF339915E4650C00D125`
-- Voice config: `D9BDFA9FF01EB2BC9E62E7D2593939D1E4C4D8EB7CF75F972731539D12399966`
+- Model: https://huggingface.co/parler-tts/parler-tts-mini-multilingual-v1.1
+- Generator: https://github.com/huggingface/parler-tts
+- Model license: Apache 2.0
 
 The phrases are original Toy Vision copy. The voice assets are local feedback;
 the app does not record a child, request microphone access, or contact a speech

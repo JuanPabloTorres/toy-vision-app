@@ -1,5 +1,5 @@
-/// Gives Tobi a youthful synthetic character, then applies a short edge fade
-/// and conservative peak normalization to the generated 16-bit mono PCM clips.
+/// Trims silence, applies a short edge fade, and normalizes Tobi's generated
+/// 16-bit mono PCM clips without changing the synthesized character timbre.
 ///
 /// Run once after freshly synthesizing the files listed in [_voiceFiles]:
 ///   dart run tools/audio_voice_postprocess.dart
@@ -18,8 +18,8 @@ const _voiceFiles = <String>[
   'assets/audio/tobi_detection_uncertain.wav',
 ];
 
-const _characterPitchSemitones = 5.0;
 const _targetPeak = 0.86;
+const _silenceThreshold = 0.012;
 
 void main() {
   for (final path in _voiceFiles) {
@@ -42,13 +42,12 @@ void main() {
       (index) => data.getInt16(44 + index * 2, Endian.little).toDouble(),
       growable: false,
     );
-    final pitchFactor = math.pow(2, _characterPitchSemitones / 12).toDouble();
-    final samples = _resample(source, pitchFactor);
+    final samples = _trimSilence(source, sampleRate);
     var peak = 1;
     for (final sample in samples) {
       peak = math.max(peak, sample.abs().round());
     }
-    final gain = math.min(1.0, (32767 * _targetPeak) / peak);
+    final gain = ((32767 * _targetPeak) / peak).clamp(0.0, 4.0);
     final fadeSamples = (sampleRate * 0.008).round();
     final output = Uint8List(44 + samples.length * 2);
     final outputData = ByteData.sublistView(output);
@@ -66,33 +65,21 @@ void main() {
     }
     file.writeAsBytesSync(output, flush: true);
     stdout.writeln(
-      '[voice] characterized $path '
-      '(pitch +${_characterPitchSemitones.toStringAsFixed(1)} st, '
-      '${(samples.length / sampleRate).toStringAsFixed(2)}s)',
+      '[voice] normalized $path '
+      '(${(samples.length / sampleRate).toStringAsFixed(2)}s)',
     );
   }
 }
 
-List<double> _resample(List<double> source, double factor) {
-  final outputLength = (source.length / factor).floor();
-  return List<double>.generate(
-    outputLength,
-    (index) {
-      final position = index * factor;
-      final center = position.floor();
-      final fraction = position - center;
-      final a = source[(center - 1).clamp(0, source.length - 1)];
-      final b = source[center.clamp(0, source.length - 1)];
-      final c = source[(center + 1).clamp(0, source.length - 1)];
-      final d = source[(center + 2).clamp(0, source.length - 1)];
-      final c0 = b;
-      final c1 = 0.5 * (c - a);
-      final c2 = a - 2.5 * b + 2 * c - 0.5 * d;
-      final c3 = 0.5 * (d - a) + 1.5 * (b - c);
-      return ((c3 * fraction + c2) * fraction + c1) * fraction + c0;
-    },
-    growable: false,
-  );
+List<double> _trimSilence(List<double> source, int sampleRate) {
+  const threshold = 32767 * _silenceThreshold;
+  var first = source.indexWhere((sample) => sample.abs() >= threshold);
+  var last = source.lastIndexWhere((sample) => sample.abs() >= threshold);
+  if (first < 0 || last < first) return source;
+  final padding = (sampleRate * 0.04).round();
+  first = math.max(0, first - padding);
+  last = math.min(source.length - 1, last + padding);
+  return source.sublist(first, last + 1);
 }
 
 void _writeHeader(ByteData data, int sampleRate, int sampleCount) {
