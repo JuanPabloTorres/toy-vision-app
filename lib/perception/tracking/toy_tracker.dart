@@ -63,8 +63,13 @@ class ToyTracker {
         (1 - previous.lastBounds.sizeSimilarity(observation.bounds))
             .clamp(0.0, 1.0),
       );
+      // Bounding-box movement is meaningful interaction evidence only while
+      // the camera view itself is stationary. Otherwise a small phone pan can
+      // look exactly like the child moving the object and can freeze the
+      // wrong scene anchor for the following disappearance check.
       final semanticMovementObserved = previous.confirmedToy &&
-          observation.source != ObservationSource.openSetProposal;
+          observation.source != ObservationSource.openSetProposal &&
+          sceneState == SceneState.stable;
       final interactionEvidence = math.max(
         previous.interactionEvidence * 0.75,
         semanticMovementObserved ? movementEvidence : 0.0,

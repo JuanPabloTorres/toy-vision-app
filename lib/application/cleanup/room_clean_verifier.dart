@@ -122,7 +122,9 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
     final remainingStable = world.activeTracks.values
         .where(
           (track) =>
-              track.isStable && !session.collectedTrackIds.contains(track.id),
+              initialIds.contains(track.id) &&
+              track.isStable &&
+              !session.collectedTrackIds.contains(track.id),
         )
         .length;
     final unresolved = world.missingTracks.values.where(

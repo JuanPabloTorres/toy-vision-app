@@ -3,6 +3,23 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.4] - 2026-09-28
+
+### Fixed
+
+- La cobertura final ya no cae visualmente a cero cuando la cámara está en
+  movimiento; conserva los sectores ya revisados y continúa al estabilizarse.
+- Las propuestas débiles/open-set dejan de bloquear indefinidamente la
+  habitación limpia o de ampliar la misión como si fueran objetos confirmados.
+- Un objeto nuevo sólo reabre la misión tras permanecer detector-confirmado en
+  una vista estable, evitando volver a buscar por tracks transitorios del paneo.
+- El movimiento de una caja sólo cuenta como interacción física cuando la
+  escena está estable; mover el teléfono ya no fabrica esa evidencia.
+
+### Release notes
+
+- Versión Flutter: `2.4.4+11`.
+
 ## [2.4.3] - 2026-09-28
 
 ### Added

@@ -59,14 +59,16 @@ coverage sectors, background-reveal score, optional depth score and every
 | Galaxy S25 connected | `BLOCKED_PHYSICAL_DEVICE_WRONG_MODEL`: ADB exposes SM-S942U (`m1q`, Galaxy S26/API 37), not an SM-S93* S25 |
 | Alternate-device smoke/camera/model | PASS on SM-S942U; this does not satisfy the S25 gate |
 | 2.4.2 integrated camera/model smoke | PASS on profile SM-S942U before the final presentation-only guard and 2.4.3 voice integration: 57 metadata-only frames / 16.09 s, 0 collections and 0 completions; no controlled pickup was executed |
-| Final 2.4.3 profile installation/camera | NOT_EXECUTED: the device locked before the final integrated artifact could be exercised |
-| Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in the 2.4.3 code and final release binary inspection must exclude both diagnostic strings |
-| Pan/scene-anchor safety | PASS on final instrumented SM-S942U run: 308 frames, 0 collections while viewpoint diverged from anchor |
+| 2.4.4 diagnostic reproduction | PASS_DIAGNOSTIC on SM-S942U: 438 metadata-only frames / 109.60 s; the mission inventory grew from 3 to 5 during the pan, with 7 missing tracks, 0 collections and 0 completions. This candidate preceded the final inventory-admission fix |
+| Final 2.4.4 artifacts | PASS_BUILD: profile SHA-256 `C6EE576AF65408C8FC4FD9384B59DBB9FA6FC7F6B95C3478D497BE868E35E46D`; release SHA-256 `AF3704EC6605824F9AD44D41902A589D04B545BB517C860EEF21DCC57359B6F9`; both report 2.4.4 (11) |
+| Final 2.4.4 profile installation/camera | NOT_EXECUTED: the exact final implementation has not yet been exercised on camera |
+| Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in the 2.4.4 code and final release binary inspection must exclude both diagnostic strings |
+| Pan/scene-anchor safety | PARTIAL: no false collection occurred, but the pre-fix 2.4.4 trace reproduced inventory inflation during pan; automated regression covers the final correction, physical confirmation remains pending |
 | Physical detector recall | FAIL in observed scene: snapshot 2 with at least 3 visible toys |
 | Full physical cleanup/completion | PENDING; no accepted stable-view removal through celebration |
 | Scenario corpus recorded | PENDING |
 | Perception accuracy thresholds calibrated | PENDING |
 | Sustained thermal/battery limits accepted | PENDING |
-| Preliminary profile performance | PARTIAL: long 2.4.1 run native p95 164.06 ms, FPS p50 3.99, 719605 KB PSS; 2.4.2 smoke p95 165.21 ms, FPS p50 3.96, thermal status 2 / skin 42.0 °C; recorder overhead present and 2.4.3 not measured |
+| Preliminary profile performance | PARTIAL: long 2.4.1 run native p95 164.06 ms, FPS p50 3.99, 719605 KB PSS; 2.4.2 smoke p95 165.21 ms, FPS p50 3.96, thermal status 2 / skin 42.0 °C; recorder overhead present and 2.4.4 not measured |
 | 3D/Rive/Lottie/audio verified on device | PARTIAL: invalid generic Rive HUD found and disabled; remaining channels pending |
 | Commercial detector license resolved | PENDING |

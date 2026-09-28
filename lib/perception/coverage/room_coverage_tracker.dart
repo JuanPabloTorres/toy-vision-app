@@ -69,7 +69,10 @@ class RoomCoverageTracker {
         _fallbackViewpoints.add(List<double>.from(embedding));
       }
     }
-    return snapshot(usesDeviceOrientation: orientationUsable);
+    // A short pan makes the current frame unsuitable for adding coverage, but
+    // it must not switch an established orientation sweep to the fallback
+    // denominator and make visible progress jump back to zero.
+    return snapshot();
   }
 
   RoomCoverageSnapshot snapshot({bool? usesDeviceOrientation}) {

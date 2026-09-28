@@ -72,7 +72,7 @@ void main() {
     expect(completed, 1);
   });
 
-  test('a newly revealed stable toy expands the room inventory once', () async {
+  test('a newly revealed toy waits for the final sweep', () async {
     final engine = HybridToyPerceptionEngine();
     final cleanup = CleanupSessionService(
       roomDiscovery: RoomDiscoverySession(
@@ -106,9 +106,9 @@ void main() {
       discovered += outcome.events.whereType<NewToyDiscovered>().length;
     }
 
-    expect(discovered, 1);
-    expect(cleanup.snapshot?.toys, hasLength(2));
-    expect(cleanup.session?.remainingEstimate, 2);
+    expect(discovered, 0);
+    expect(cleanup.snapshot?.toys, hasLength(1));
+    expect(cleanup.session?.remainingEstimate, 1);
     expect(cleanup.session?.confirmedCollected, 0);
   });
 

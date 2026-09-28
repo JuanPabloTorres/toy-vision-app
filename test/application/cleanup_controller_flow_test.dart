@@ -121,10 +121,10 @@ void main() {
     await controller.ingest(_frame(4, origin.add(const Duration(seconds: 8))));
     state = container.read(cleanupControllerProvider);
     expect(state.phase, CleanupPhase.verifyingRoom);
-    expect(state.completionEvidence?.candidateToyCount, 1);
+    expect(state.completionEvidence?.candidateToyCount, 0);
     expect(
       state.completionEvidence?.blockingReasons,
-      contains('ambiguous_toy_candidates'),
+      isNot(contains('ambiguous_toy_candidates')),
     );
 
     for (var index = 5; index < results.length; index++) {
@@ -147,6 +147,160 @@ void main() {
     );
     expect(events.whereType<RoomCleanConfirmed>(), hasLength(1));
     expect(events.whereType<CleanupCompleted>(), hasLength(1));
+  });
+
+  test('camera motion cannot return final verification to search', () async {
+    final origin = DateTime.utc(2026, 1, 2);
+    final toy = _track(1, origin, size: 0.25);
+    final transient = _track(2, origin, size: 0.18);
+    final missing = _missing(toy, origin.add(const Duration(seconds: 6)));
+    final results = <PerceptionResult>[
+      _result(origin, const [1, 0], active: {1: toy}),
+      _result(
+        origin.add(const Duration(seconds: 4)),
+        const [0.8, 0.6],
+        active: {1: toy},
+      ),
+      _result(
+        origin.add(const Duration(seconds: 6)),
+        const [1, 0],
+        missing: {1: missing},
+        disappearance: {1: _confirmedRemoval(missing)},
+      ),
+      _result(
+        origin.add(const Duration(milliseconds: 6300)),
+        const [0.95, 0.05],
+        active: {2: transient},
+        sceneState: SceneState.moving,
+        stableFrameCount: 0,
+      ),
+      for (var index = 0; index < 5; index++)
+        _result(
+          origin.add(Duration(seconds: 7 + index)),
+          const [0, 1],
+        ),
+    ];
+    final engine = _SequencePerceptionEngine(results);
+    final eventBus = DomainEventBus();
+    final history = _MemoryHistory();
+    final container = ProviderContainer(
+      overrides: [
+        perceptionEngineProvider.overrideWithValue(engine),
+        progressRepositoryProvider.overrideWithValue(history),
+        domainEventBusProvider.overrideWithValue(eventBus),
+      ],
+    );
+    addTearDown(() async {
+      container.dispose();
+      await eventBus.dispose();
+    });
+    final controller = container.read(cleanupControllerProvider.notifier);
+
+    controller.start();
+    controller.markModelReady();
+    controller.beginDiscovery();
+    await controller.ingest(_frame(0, origin));
+    await controller.ingest(_frame(1, origin.add(const Duration(seconds: 4))));
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    await controller.ingest(_frame(2, origin.add(const Duration(seconds: 6))));
+
+    var state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.verifyingRoom);
+    expect(state.remainingEstimate, 0);
+    final coverageBeforeMotion = state.completionEvidence?.sceneCoverage;
+
+    await controller.ingest(
+      _frame(3, origin.add(const Duration(milliseconds: 6300))),
+    );
+    state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.verifyingRoom);
+    expect(state.remainingEstimate, 0);
+    expect(state.activeTargetTrackId, isNull);
+    expect(state.completionEvidence?.sceneCoverage, coverageBeforeMotion);
+
+    for (var index = 4; index < results.length; index++) {
+      await controller.ingest(
+        _frame(index, origin.add(Duration(seconds: index + 3))),
+      );
+    }
+    state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.completed);
+    expect(history.saved, hasLength(1));
+  });
+
+  test('a new stable object reopens only the final sweep', () async {
+    final origin = DateTime.utc(2026, 1, 3);
+    final toy = _track(1, origin, size: 0.25);
+    final revealed = _track(2, origin, size: 0.18);
+    final missing = _missing(toy, origin.add(const Duration(seconds: 6)));
+    final results = <PerceptionResult>[
+      _result(origin, const [1, 0], active: {1: toy}),
+      _result(
+        origin.add(const Duration(seconds: 4)),
+        const [0.8, 0.6],
+        active: {1: toy},
+      ),
+      _result(
+        origin.add(const Duration(seconds: 6)),
+        const [1, 0],
+        missing: {1: missing},
+        disappearance: {1: _confirmedRemoval(missing)},
+      ),
+      _result(
+        origin.add(const Duration(seconds: 7)),
+        const [0, 1],
+        active: {2: revealed},
+      ),
+      _result(
+        origin.add(const Duration(milliseconds: 7700)),
+        const [0, 1],
+        active: {2: revealed},
+      ),
+    ];
+    final engine = _SequencePerceptionEngine(results);
+    final eventBus = DomainEventBus();
+    final events = <CleanupEvent>[];
+    final subscription = eventBus.events.listen(events.add);
+    final container = ProviderContainer(
+      overrides: [
+        perceptionEngineProvider.overrideWithValue(engine),
+        progressRepositoryProvider.overrideWithValue(_MemoryHistory()),
+        domainEventBusProvider.overrideWithValue(eventBus),
+      ],
+    );
+    addTearDown(() async {
+      await subscription.cancel();
+      container.dispose();
+      await eventBus.dispose();
+    });
+    final controller = container.read(cleanupControllerProvider.notifier);
+
+    controller.start();
+    controller.markModelReady();
+    controller.beginDiscovery();
+    await controller.ingest(_frame(0, origin));
+    await controller.ingest(_frame(1, origin.add(const Duration(seconds: 4))));
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    await controller.ingest(_frame(2, origin.add(const Duration(seconds: 6))));
+    expect(
+      container.read(cleanupControllerProvider).phase,
+      CleanupPhase.verifyingRoom,
+    );
+
+    await controller.ingest(_frame(3, origin.add(const Duration(seconds: 7))));
+    expect(
+      container.read(cleanupControllerProvider).phase,
+      CleanupPhase.verifyingRoom,
+    );
+    await controller.ingest(
+      _frame(4, origin.add(const Duration(milliseconds: 7700))),
+    );
+
+    final state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.cleaning);
+    expect(state.remainingEstimate, 1);
+    expect(state.activeTargetTrackId, 2);
+    expect(events.whereType<NewToyDiscovered>(), hasLength(1));
   });
 }
 
@@ -267,6 +421,8 @@ PerceptionResult _result(
   Map<int, ToyTrack> missing = const {},
   Map<int, DisappearanceEvidence> disappearance = const {},
   List<ToyObservation> uncertain = const [],
+  SceneState sceneState = SceneState.stable,
+  int stableFrameCount = 10,
 }) {
   final analysis = FrameAnalysis(
     embeddingExtractorIdentifier: 'test',
@@ -285,17 +441,17 @@ PerceptionResult _result(
       activeTracks: active,
       missingTracks: missing,
       collectedTracks: const {},
-      sceneState: SceneState.stable,
+      sceneState: sceneState,
       scene: SceneDescriptor(
         embedding: sceneEmbedding,
-        state: SceneState.stable,
+        state: sceneState,
         similarityToPrevious: 0.99,
         motion: 0.01,
         sharpness: 1,
         luminance: 1,
         coverage: 1,
         timestamp: at,
-        stableFrameCount: 10,
+        stableFrameCount: stableFrameCount,
         similarityToStableAnchor: 0.99,
       ),
       updatedAt: at,

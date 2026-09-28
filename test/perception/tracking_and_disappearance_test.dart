@@ -167,6 +167,33 @@ void main() {
     );
   });
 
+  test('camera movement cannot become physical interaction evidence', () {
+    final tracker = ToyTracker();
+    final start = DateTime.utc(2026);
+    tracker.update(
+      [_typedObservation(start, 0.2, ObservationSource.detector, true)],
+      start,
+      SceneState.stable,
+    );
+    final movedAt = start.add(const Duration(milliseconds: 200));
+
+    tracker.update(
+      [
+        _typedObservation(
+          movedAt,
+          0.32,
+          ObservationSource.detector,
+          true,
+        ),
+      ],
+      movedAt,
+      SceneState.moving,
+    );
+
+    expect(tracker.tracks.single.lastInteractionAt, isNull);
+    expect(tracker.tracks.single.interactionEvidence, lessThan(.12));
+  });
+
   test('camera occlusion does not accumulate a disappearance window', () {
     final tracker = ToyTracker();
     final start = DateTime.utc(2026);
