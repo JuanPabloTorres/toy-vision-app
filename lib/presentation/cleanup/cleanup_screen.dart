@@ -106,7 +106,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
     final cleanup = ref.watch(cleanupControllerProvider);
     final config = ref.watch(resolvedYoloConfigProvider);
     final cameraEnabled = ref.watch(cameraSurfaceEnabledProvider);
-    final visionMode = ref.watch(visionDisplayModeProvider);
+    final visionMode = ref.watch(effectiveVisionDisplayModeProvider);
     final showCamera = cleanup.phase == CleanupPhase.ready ||
         cleanup.phase == CleanupPhase.discovering ||
         cleanup.phase == CleanupPhase.cleaning ||
@@ -190,13 +190,16 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
                 sourceHeight: cleanup.metrics!.sourceHeight,
                 activeTrackId: cleanup.activeTargetTrackId,
               ),
-            if (visionMode == VisionDisplayMode.developerDebug &&
+            if (developerVisionAvailable &&
+                visionMode == VisionDisplayMode.developerDebug &&
                 cleanup.latestPerception != null)
               DeveloperVisionOverlay(
                 result: cleanup.latestPerception!,
                 phase: cleanup.phase,
                 activeToyId: cleanup.activeTargetTrackId,
                 completionEvidence: cleanup.completionEvidence,
+                collected: cleanup.collected,
+                remainingEstimate: cleanup.remainingEstimate,
               ),
             _CleanupChrome(
               state: cleanup,
@@ -701,7 +704,7 @@ class _VisionCoachCard extends StatelessWidget {
               (evidence.missingDuration.inMilliseconds / 1500).clamp(0.0, 1.0);
           progress =
               frameProgress < timeProgress ? frameProgress : timeProgress;
-          if (!evidence.interactionObserved) {
+          if (!evidence.interactionObserved && !evidence.directPickupEvidence) {
             body =
                 'Recógelo despacio dentro del cuadro para que Tobi vea el movimiento.';
           } else if (!evidence.stableSceneWindow) {

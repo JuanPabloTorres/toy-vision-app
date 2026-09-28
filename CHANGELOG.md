@@ -3,6 +3,43 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.5] - 2026-09-28
+
+### Added
+
+- Overlay de certificación disponible sólo en debug/profile con fase, conteos
+  de propuestas y tracks, progreso, movimiento, reaparición, evidencia de
+  retirada, cobertura, ventana limpia, decisión y bloqueadores.
+
+### Changed
+
+- El diagnóstico de cámara queda excluido de builds release y permanece
+  separado del modo infantil.
+
+### Fixed
+
+- Una recogida rápida que ocurre entre frames puede confirmarse mediante el
+  fondo estable revelado en la región original, sin exigir que el detector haya
+  visto primero el objeto en movimiento.
+- Una desaparición iniciada durante movimiento de cámara conserva esa causa y
+  nunca usa la vía rápida de recogida, aunque el teléfono se estabilice luego.
+- La cobertura final ya no cae visualmente a cero cuando la cámara está en
+  movimiento; conserva los sectores ya revisados y continúa al estabilizarse.
+- Las propuestas débiles/open-set dejan de bloquear indefinidamente la
+  habitación limpia o de ampliar la misión como si fueran objetos confirmados.
+- Un objeto nuevo sólo reabre la misión tras permanecer detector-confirmado en
+  una vista estable, evitando volver a buscar por tracks transitorios del paneo.
+- Desde su primer frame, todo objeto nuevo detector-confirmado pausa la ventana
+  limpia para impedir una finalización prematura mientras se valida su admisión.
+- El movimiento de una caja sólo cuenta como interacción física cuando la
+  escena está estable; mover el teléfono ya no fabrica esa evidencia.
+- Reactivar Modo infantil fuerza la superficie visual infantil y apaga el
+  diagnóstico de cámara seleccionado previamente.
+
+### Release notes
+
+- Versión Flutter: `2.4.5+12`.
+
 ## [2.4.4] - 2026-09-28
 
 ### Fixed

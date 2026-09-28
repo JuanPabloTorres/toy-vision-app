@@ -45,6 +45,42 @@ void main() {
       expect(outcome.completed, 0);
     });
 
+    test('B: fast pickup between frames collects and completes', () async {
+      final frames = <ReplayFrame>[
+        ..._stableToyFrames(),
+        for (var index = 0; index < 14; index++)
+          ReplayFrame(
+            milliseconds: 3900 + index * 300,
+            background: const [150, 150, 150],
+            toy: false,
+            detect: false,
+          ),
+        for (var index = 0; index < 14; index++)
+          ReplayFrame(
+            milliseconds: 8100 + index * 300,
+            background: const [90, 120, 165],
+            toy: false,
+            detect: false,
+          ),
+      ];
+      final outcome = await _run(frames, armCleanup: true);
+
+      expect(outcome.sessionCreated, isTrue);
+      expect(
+        outcome.collected,
+        1,
+        reason: outcome.lastRemovalDiagnostic,
+      );
+      expect(
+        outcome.firstCollectedAt!.difference(
+          DateTime.utc(2026).add(const Duration(milliseconds: 3900)),
+        ),
+        lessThanOrEqualTo(const Duration(seconds: 3)),
+      );
+      expect(outcome.completed, 1);
+      expect(outcome.firstCompletedAt, isNotNull);
+    });
+
     test('D: a moving unknown region cannot become a confirmed toy', () async {
       final frames = [
         for (var index = 0; index < 30; index++)
@@ -59,6 +95,24 @@ void main() {
       final outcome = await _run(frames, armCleanup: true);
 
       expect(outcome.sessionCreated, isFalse);
+      expect(outcome.collected, 0);
+      expect(outcome.completed, 0);
+    });
+
+    test('F: detector dropout while object remains cannot collect', () async {
+      final frames = <ReplayFrame>[
+        ..._stableToyFrames(),
+        for (var index = 0; index < 24; index++)
+          ReplayFrame(
+            milliseconds: 3900 + index * 300,
+            background: const [150, 150, 150],
+            toy: true,
+            detect: false,
+          ),
+      ];
+      final outcome = await _run(frames, armCleanup: true);
+
+      expect(outcome.sessionCreated, isTrue);
       expect(outcome.collected, 0);
       expect(outcome.completed, 0);
     });
@@ -127,6 +181,9 @@ Future<_RunOutcome> _run(
   var sawUnconfirmedCandidates = false;
   var snapshotCreated = false;
   var sessionCreated = false;
+  var lastRemovalDiagnostic = 'no disappearance evidence';
+  DateTime? firstCollectedAt;
+  DateTime? firstCompletedAt;
 
   for (var index = 0; index < frames.length; index++) {
     final cameraFrame = renderer.render(
@@ -143,6 +200,18 @@ Future<_RunOutcome> _run(
       perception,
       allowCollection: cleanup.session != null,
     );
+    for (final evidence in perception.disappearanceEvidence.values) {
+      final track = perception.worldModel.missingTracks[evidence.trackId];
+      lastRemovalDiagnostic =
+          'frame=$index scene=${perception.worldModel.scene.state.name} '
+          'motion=${perception.worldModel.scene.motion.toStringAsFixed(3)} '
+          'anchor=${perception.worldModel.scene.similarityToStableAnchor.toStringAsFixed(3)} '
+          'cameraLoss=${track?.lostDuringCameraMotion} '
+          'direct=${evidence.directPickupEvidence} '
+          'background=${evidence.backgroundRevealScore.toStringAsFixed(3)} '
+          'local=${evidence.localSimilarity.toStringAsFixed(3)} '
+          'reasons=${evidence.rejectionReasons.join(',')}';
+    }
     snapshotCreated |= result.initialSnapshot != null;
     if (armCleanup &&
         result.initialSnapshot != null &&
@@ -152,6 +221,13 @@ Future<_RunOutcome> _run(
     sessionCreated |= cleanup.session != null;
     collected += result.events.whereType<ToyCollected>().length;
     completed += result.events.whereType<CleanupCompleted>().length;
+    for (final event in result.events) {
+      if (event is ToyCollected) {
+        firstCollectedAt ??= event.occurredAt;
+      } else if (event is CleanupCompleted) {
+        firstCompletedAt ??= event.occurredAt;
+      }
+    }
     for (final trackId in result.tracksToMarkCollected) {
       engine.markCollected(trackId, cameraFrame.timestamp);
     }
@@ -162,6 +238,9 @@ Future<_RunOutcome> _run(
     sawUnconfirmedCandidates: sawUnconfirmedCandidates,
     snapshotCreated: snapshotCreated,
     sessionCreated: sessionCreated,
+    lastRemovalDiagnostic: lastRemovalDiagnostic,
+    firstCollectedAt: firstCollectedAt,
+    firstCompletedAt: firstCompletedAt,
   );
 }
 
@@ -172,6 +251,9 @@ class _RunOutcome {
     required this.sawUnconfirmedCandidates,
     required this.snapshotCreated,
     required this.sessionCreated,
+    required this.lastRemovalDiagnostic,
+    required this.firstCollectedAt,
+    required this.firstCompletedAt,
   });
 
   final int collected;
@@ -179,4 +261,7 @@ class _RunOutcome {
   final bool sawUnconfirmedCandidates;
   final bool snapshotCreated;
   final bool sessionCreated;
+  final String lastRemovalDiagnostic;
+  final DateTime? firstCollectedAt;
+  final DateTime? firstCompletedAt;
 }

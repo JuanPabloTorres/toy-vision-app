@@ -99,8 +99,20 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
         );
     final interactionStrength =
         (track.interactionEvidence / 0.25).clamp(0.0, 1.0);
+    // A pickup can happen entirely between inference frames, especially on a
+    // 3-4 FPS device. In that case no moving box is observable. A strongly
+    // changed, reobserved ROI in the same stable camera view is independent
+    // physical evidence of removal. Losses that began during camera motion
+    // are deliberately excluded from this path.
+    final directPickupEvidence = fusionEvidence != null &&
+        !track.lostDuringCameraMotion &&
+        stableSceneWindow &&
+        regionReobserved &&
+        fused.backgroundRevealScore >= 0.40 &&
+        localSimilarity <= 0.82 &&
+        fused.cameraTrackingGood;
     final corroboratingSignalCount = [
-      fused.backgroundRevealed,
+      fused.backgroundRevealed || directPickupEvidence,
       fused.depthConfirmsRemoval,
       interactionStrength >= 0.5,
     ].where((value) => value).length;
@@ -111,7 +123,8 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
             (stableSceneWindow ? 0.15 : 0) +
             (regionReobserved ? 0.10 : 0) +
             localChangeEvidence * 0.15 +
-            interactionStrength * 0.15)
+            interactionStrength * 0.15 +
+            (directPickupEvidence ? 0.10 : 0))
         .clamp(0.0, 1.0);
     final rejectionReasons = <String>[
       if (!track.confirmedToy) 'track_not_confirmed_toy',
@@ -124,7 +137,8 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
       if (localSimilarity > 0.90) 'object_or_similar_visual_still_present',
       if (occluded) 'occlusion_possible',
       if (reidentificationCandidate) 'possible_reidentification',
-      if (!interactionObserved) 'physical_interaction_not_observed',
+      if (!interactionObserved && !directPickupEvidence)
+        'physical_interaction_not_observed',
       if (!fused.cameraTrackingGood) 'camera_tracking_not_reliable',
       if (fused.motionAvailable && fused.deviceMotion > 0.55)
         'device_motion_too_high',
@@ -146,6 +160,7 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
       stableSceneWindow: stableSceneWindow,
       interactionObserved: interactionObserved,
       reidentificationCandidate: reidentificationCandidate,
+      directPickupEvidence: directPickupEvidence,
       deviceMotion: fused.deviceMotion,
       backgroundRevealScore: fused.backgroundRevealScore,
       depthChangeScore: fused.depthChangeScore,

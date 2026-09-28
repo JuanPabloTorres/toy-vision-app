@@ -37,6 +37,29 @@ void main() {
     expect(second.coverage, 1);
     expect(second.usesDeviceOrientation, isFalse);
   });
+
+  test('camera motion preserves directional progress already earned', () {
+    final tracker = RoomCoverageTracker(minimumDirectionalSectors: 4);
+
+    final stable = tracker.observe(
+      _scene(yaw: 0, pitch: 0, orientation: true),
+    );
+    final moving = tracker.observe(
+      _scene(
+        yaw: 8,
+        pitch: 0,
+        orientation: true,
+        state: SceneState.moving,
+        stableFrameCount: 0,
+        gyroscope: 1.2,
+      ),
+    );
+
+    expect(stable.coverage, 0.25);
+    expect(moving.coverage, 0.25);
+    expect(moving.usesDeviceOrientation, isTrue);
+    expect(moving.visited, contains(RoomCoverageSector.center));
+  });
 }
 
 SceneDescriptor _scene({
@@ -44,25 +67,28 @@ SceneDescriptor _scene({
   double pitch = 0,
   List<double> embedding = const [1, 0],
   bool orientation = false,
+  SceneState state = SceneState.stable,
+  int stableFrameCount = 10,
+  double gyroscope = 0.01,
 }) {
   final now = DateTime.utc(2026);
   return SceneDescriptor(
     embedding: embedding,
-    state: SceneState.stable,
+    state: state,
     similarityToPrevious: 0.99,
     motion: 0.01,
     sharpness: 0.2,
     luminance: 0.5,
     coverage: 1,
     timestamp: now,
-    stableFrameCount: 10,
+    stableFrameCount: stableFrameCount,
     similarityToStableAnchor: 0.99,
     spatial: orientation
         ? SpatialObservation(
             timestamp: now,
             motionAvailable: true,
             orientationAvailable: true,
-            gyroscopeRadPerSecond: 0.01,
+            gyroscopeRadPerSecond: gyroscope,
             linearAccelerationMetersPerSecond2: 0.01,
             yawDegrees: yaw,
             pitchDegrees: pitch,

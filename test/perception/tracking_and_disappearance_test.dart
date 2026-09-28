@@ -167,6 +167,33 @@ void main() {
     );
   });
 
+  test('camera movement cannot become physical interaction evidence', () {
+    final tracker = ToyTracker();
+    final start = DateTime.utc(2026);
+    tracker.update(
+      [_typedObservation(start, 0.2, ObservationSource.detector, true)],
+      start,
+      SceneState.stable,
+    );
+    final movedAt = start.add(const Duration(milliseconds: 200));
+
+    tracker.update(
+      [
+        _typedObservation(
+          movedAt,
+          0.32,
+          ObservationSource.detector,
+          true,
+        ),
+      ],
+      movedAt,
+      SceneState.moving,
+    );
+
+    expect(tracker.tracks.single.lastInteractionAt, isNull);
+    expect(tracker.tracks.single.interactionEvidence, lessThan(.12));
+  });
+
   test('camera occlusion does not accumulate a disappearance window', () {
     final tracker = ToyTracker();
     final start = DateTime.utc(2026);
@@ -182,6 +209,7 @@ void main() {
     expect(track.presence, TrackPresence.occluded);
     expect(track.missingFrames, 0);
     expect(track.missingSince, isNull);
+    expect(track.lostDuringCameraMotion, isTrue);
 
     final stableAt = start.add(const Duration(milliseconds: 400));
     tracker.update(const [], stableAt, SceneState.stable);
@@ -189,6 +217,7 @@ void main() {
     expect(track.presence, TrackPresence.missingCandidate);
     expect(track.missingFrames, 1);
     expect(track.missingSince, stableAt);
+    expect(track.lostDuringCameraMotion, isTrue);
   });
 
   test('confirmed identity template cannot drift across later crops', () {
@@ -334,6 +363,99 @@ void main() {
         .evidence;
 
     expect(evidence.confirmed, isFalse);
+    expect(
+      evidence.rejectionReasons,
+      contains('physical_interaction_not_observed'),
+    );
+  });
+
+  test('pickup between frames uses stable revealed background evidence', () {
+    final now = DateTime.utc(2026);
+    final scene = _scene(
+      now,
+      SceneState.stable,
+      similarity: 0.99,
+      spatial: SpatialObservation(
+        timestamp: now,
+        motionAvailable: true,
+        orientationAvailable: true,
+        gyroscopeRadPerSecond: 0.01,
+        linearAccelerationMetersPerSecond2: 0.01,
+        yawDegrees: 0,
+        pitchDegrees: 0,
+      ),
+    );
+    final track = _missingTrackAt(
+      now,
+      missingSince: now.subtract(const Duration(seconds: 2)),
+      missingFrames: 10,
+      interaction: false,
+    );
+    final fusion = const SensorFusionEngine().evaluateRemoval(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      spatial: scene.spatial,
+    );
+
+    final evaluation = const DisappearanceVerifier().evaluate(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      occluded: false,
+      reidentificationCandidate: false,
+      timestamp: now,
+      fusionEvidence: fusion,
+    );
+
+    expect(evaluation.decision, RemovalDecision.removalConfirmed);
+    expect(evaluation.evidence.interactionObserved, isFalse);
+    expect(evaluation.evidence.directPickupEvidence, isTrue);
+  });
+
+  test('camera-caused loss cannot use direct pickup evidence later', () {
+    final now = DateTime.utc(2026);
+    final scene = _scene(
+      now,
+      SceneState.stable,
+      similarity: 0.99,
+      spatial: SpatialObservation(
+        timestamp: now,
+        motionAvailable: true,
+        orientationAvailable: true,
+        gyroscopeRadPerSecond: 0.01,
+        linearAccelerationMetersPerSecond2: 0.01,
+        yawDegrees: 0,
+        pitchDegrees: 0,
+      ),
+    );
+    final track = _missingTrackAt(
+      now,
+      missingSince: now.subtract(const Duration(seconds: 2)),
+      missingFrames: 10,
+      interaction: false,
+    ).copyWith(lostDuringCameraMotion: true);
+    final fusion = const SensorFusionEngine().evaluateRemoval(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      spatial: scene.spatial,
+    );
+
+    final evidence = const DisappearanceVerifier()
+        .evaluate(
+          track: track,
+          scene: scene,
+          currentRegionEmbedding: const [0, 1],
+          occluded: false,
+          reidentificationCandidate: false,
+          timestamp: now,
+          fusionEvidence: fusion,
+        )
+        .evidence;
+
+    expect(evidence.confirmed, isFalse);
+    expect(evidence.directPickupEvidence, isFalse);
     expect(
       evidence.rejectionReasons,
       contains('physical_interaction_not_observed'),
@@ -709,8 +831,9 @@ ToyTrack _missingTrackAt(
   DateTime now, {
   required DateTime missingSince,
   required int missingFrames,
+  bool interaction = true,
 }) {
-  final track = _missingTrack(now);
+  final track = _missingTrack(now, interaction: interaction);
   return track.copyWith(
     missingSince: missingSince,
     missingFrames: missingFrames,

@@ -4,6 +4,7 @@ import '../../domain/cleanup/collected_object_memory.dart';
 import '../../domain/scene/room_snapshot.dart';
 import '../../perception/perception_models.dart';
 import '../../perception/room_discovery/room_discovery_session.dart';
+import 'new_toy_admission_tracker.dart';
 import 'room_clean_verifier.dart';
 
 class CleanupProcessingOutcome {
@@ -32,13 +33,17 @@ class CleanupSessionService {
     RoomDiscoverySession? roomDiscovery,
     RoomCleanVerifier? roomCleanVerifier,
     CollectedObjectMemory? collectedMemory,
+    NewToyAdmissionTracker? newToyAdmissionTracker,
   })  : _roomCleanVerifier =
             roomCleanVerifier ?? EvidenceBasedRoomCleanVerifier(),
         _collectedMemory = collectedMemory ?? CollectedObjectMemory(),
+        _newToyAdmissionTracker =
+            newToyAdmissionTracker ?? NewToyAdmissionTracker(),
         _roomDiscovery = roomDiscovery ?? RoomDiscoverySession();
 
   final RoomCleanVerifier _roomCleanVerifier;
   final CollectedObjectMemory _collectedMemory;
+  final NewToyAdmissionTracker _newToyAdmissionTracker;
   final RoomDiscoverySession _roomDiscovery;
 
   CleanupSession? _session;
@@ -79,9 +84,21 @@ class CleanupSessionService {
       );
     }
 
+    final knownIds = _snapshot!.toys.map((toy) => toy.trackId).toSet();
+    final admittedIds = session.remainingEstimate == 0
+        ? _newToyAdmissionTracker.observe(
+            perception.worldModel,
+            knownTrackIds: knownIds,
+          )
+        : <int>{};
+    if (session.remainingEstimate > 0) {
+      // Keep the initial mission stable while the child is collecting. A pan
+      // may fragment tracks or reveal more of the room; those identities are
+      // reconsidered only in the explicit final sweep.
+      _newToyAdmissionTracker.reset();
+    }
     for (final track in perception.worldModel.activeTracks.values) {
-      final knownIds = _snapshot!.toys.map((toy) => toy.trackId).toSet();
-      if (!track.isStable || knownIds.contains(track.id)) continue;
+      if (!admittedIds.contains(track.id)) continue;
       if (_collectedMemory.probablyAlreadyCollected(
         trackId: track.id,
         embedding: track.visualEmbedding,
@@ -142,9 +159,11 @@ class CleanupSessionService {
       snapshot: _snapshot!,
       world: perception.worldModel,
       session: session,
-      uncertainTracks: perception.uncertainObservations
-          .where((candidate) => candidate.temporalPersistence >= 1)
-          .length,
+      // Candidate != confirmed toy. Weak/open-set regions remain visible in
+      // diagnostics but cannot hold the child in an endless review loop.
+      // Only detector-confirmed identities currently completing the settled
+      // admission window block room completion.
+      uncertainTracks: _newToyAdmissionTracker.pendingCount,
     );
     final completion = roomClean.evidence;
     if (!_almostCleanPublished &&
@@ -215,6 +234,7 @@ class CleanupSessionService {
     _snapshot = null;
     _almostCleanPublished = false;
     _collectedMemory.clear();
+    _newToyAdmissionTracker.reset();
     _roomDiscovery.reset();
     _roomCleanVerifier.reset();
   }

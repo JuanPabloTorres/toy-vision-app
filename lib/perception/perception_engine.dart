@@ -143,6 +143,7 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
       [...fused.accepted, ...fused.uncertain],
       frame.timestamp,
       scene.state,
+      sceneMotion: scene.motion,
     );
     final disappearance = <int, DisappearanceEvidence>{};
     final occludedTrackIds = <int>{};

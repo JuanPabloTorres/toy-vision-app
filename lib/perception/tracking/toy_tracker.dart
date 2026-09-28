@@ -34,8 +34,9 @@ class ToyTracker {
   TrackingUpdate update(
     List<ToyObservation> observations,
     DateTime timestamp,
-    SceneState sceneState,
-  ) {
+    SceneState sceneState, {
+    double sceneMotion = 0,
+  }) {
     // Open-set regions are proposals, not semantic toy observations. They may
     // support fusion, but cannot move or keep a confirmed identity alive.
     final trackingObservations = observations
@@ -63,8 +64,13 @@ class ToyTracker {
         (1 - previous.lastBounds.sizeSimilarity(observation.bounds))
             .clamp(0.0, 1.0),
       );
+      // Bounding-box movement is meaningful interaction evidence only while
+      // the camera view itself is stationary. Otherwise a small phone pan can
+      // look exactly like the child moving the object and can freeze the
+      // wrong scene anchor for the following disappearance check.
       final semanticMovementObserved = previous.confirmedToy &&
-          observation.source != ObservationSource.openSetProposal;
+          observation.source != ObservationSource.openSetProposal &&
+          sceneState == SceneState.stable;
       final interactionEvidence = math.max(
         previous.interactionEvidence * 0.75,
         semanticMovementObserved ? movementEvidence : 0.0,
@@ -101,6 +107,7 @@ class ToyTracker {
         lastInteractionAt: semanticMovementObserved && movementEvidence >= 0.12
             ? timestamp
             : previous.lastInteractionAt,
+        lostDuringCameraMotion: false,
         clearMissingSince: true,
       );
       transitions.add(
@@ -136,6 +143,10 @@ class ToyTracker {
                 : timestamp)
             : null,
         clearMissingSince: !canSearch,
+        // Preserve how this disappearance started. Once camera motion caused
+        // the loss, later stationary frames cannot turn it into a pickup.
+        lostDuringCameraMotion:
+            previous.lostDuringCameraMotion || !canSearch || sceneMotion > 0.06,
       );
       if (missingFrames == 1) {
         transitions.add(

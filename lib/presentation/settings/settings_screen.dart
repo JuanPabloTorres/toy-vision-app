@@ -94,7 +94,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Modo infantil',
                   subtitle: 'Mantiene la interfaz simple y sin datos técnicos',
                   value: settings.kidModeEnabled,
-                  onChanged: controller.setKidMode,
+                  onChanged: (enabled) async {
+                    if (enabled) {
+                      ref.read(visionDisplayModeProvider.notifier).state =
+                          VisionDisplayMode.kid;
+                    }
+                    await controller.setKidMode(enabled);
+                  },
                 ),
               ],
             ),
@@ -107,22 +113,23 @@ class SettingsScreen extends ConsumerWidget {
               title: const Text('Opciones avanzadas'),
               subtitle: const Text('Para adultos'),
               children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.camera_outlined),
-                  title: const Text('Diagnóstico de cámara'),
-                  subtitle: const Text(
-                    'Muestra etapas, IDs y razones de rechazo. Nunca aparece en modo infantil.',
+                if (developerVisionAvailable)
+                  SwitchListTile(
+                    secondary: const Icon(Icons.camera_outlined),
+                    title: const Text('Diagnóstico de cámara'),
+                    subtitle: const Text(
+                      'Muestra etapas, IDs y razones de rechazo. Nunca aparece en modo infantil.',
+                    ),
+                    value: debug,
+                    onChanged: settings.kidModeEnabled
+                        ? null
+                        : (enabled) {
+                            ref.read(visionDisplayModeProvider.notifier).state =
+                                enabled
+                                    ? VisionDisplayMode.developerDebug
+                                    : VisionDisplayMode.kid;
+                          },
                   ),
-                  value: debug,
-                  onChanged: settings.kidModeEnabled
-                      ? null
-                      : (enabled) {
-                          ref.read(visionDisplayModeProvider.notifier).state =
-                              enabled
-                                  ? VisionDisplayMode.developerDebug
-                                  : VisionDisplayMode.kid;
-                        },
-                ),
                 const ListTile(
                   leading: AppImage(
                     assetPath: AppAssets.modelIcon,
