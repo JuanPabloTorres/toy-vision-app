@@ -37,15 +37,34 @@ def _write(name: str, samples: list[float]) -> None:
 
 
 def pop() -> list[float]:
-    """A soft 'bloop' — a quick upward pitch slide with a fast bell decay."""
-    dur = 0.13
+    """A clear two-part bubble pop that survives phone-speaker playback."""
+    dur = 0.26
     n = int(SR * dur)
     out = []
+    phase = 0.0
+    sparkle_phase = 0.0
     for i in range(n):
         t = i / SR
-        freq = 420 + 520 * (t / dur)  # rise 420→940 Hz
-        env = min(1.0, t / 0.004) * math.exp(-10 * t / dur)
-        out.append(0.5 * env * math.sin(2 * math.pi * freq * t))
+        progress = t / dur
+        freq = 520 + 560 * progress
+        phase += 2 * math.pi * freq / SR
+        env = min(1.0, t / 0.003) * math.exp(-4.2 * progress)
+        body = env * (
+            0.76 * math.sin(phase) + 0.24 * math.sin(2 * phase)
+        )
+
+        sparkle_t = t - 0.105
+        sparkle = 0.0
+        if sparkle_t >= 0:
+            sparkle_progress = sparkle_t / (dur - 0.105)
+            sparkle_freq = 980 + 520 * sparkle_progress
+            sparkle_phase += 2 * math.pi * sparkle_freq / SR
+            sparkle_env = min(1.0, sparkle_t / 0.002) * math.exp(
+                -5.5 * sparkle_progress
+            )
+            sparkle = 0.48 * sparkle_env * math.sin(sparkle_phase)
+
+        out.append(math.tanh(1.7 * (0.82 * body + sparkle)))
     return out
 
 
