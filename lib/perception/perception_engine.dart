@@ -144,6 +144,8 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
       frame.timestamp,
       scene.state,
       sceneMotion: scene.motion,
+      deviceMotionAvailable: frame.spatial.motionAvailable,
+      deviceMotion: frame.spatial.normalizedMotion,
     );
     final disappearance = <int, DisappearanceEvidence>{};
     final occludedTrackIds = <int>{};

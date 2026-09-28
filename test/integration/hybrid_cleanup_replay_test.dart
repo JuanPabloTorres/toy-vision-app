@@ -26,8 +26,7 @@ void main() {
         policy: const RoomCleanPolicy(
           minimumCleanDuration: Duration(seconds: 2),
           minimumCleanFrames: 3,
-          minimumViewpoints: 1,
-          minimumCameraMotion: 0,
+          minimumVisualViewpoints: 1,
         ),
       ),
     );

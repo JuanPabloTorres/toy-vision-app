@@ -64,10 +64,13 @@ coverage sectors, background-reveal score, optional depth score and every
 | Final 2.4.4 profile installation/camera | NOT_EXECUTED: the exact final implementation has not yet been exercised on camera |
 | Final merged 2.4.5 artifacts | PASS_BUILD: profile SHA-256 `64FB5FE5AE8A70244110C1CBE1F2E2698F63C10F73622A179DF09E55FB7418FE`; release SHA-256 `8F48D836EAD2F219CAE906838165415F74314A2AF0F3BA8145D2C73466DFFC7D`; both report 2.4.5 (12) |
 | Fast pickup between frames | PASS_REPLAY: exactly one collection within 3 s, followed by final sweep and exactly one completion; physical execution of 2.4.5 remains pending |
+| 2.4.6 completion-refactor artifacts | PASS_BUILD: profile SHA-256 `5CE04F0F09CEA3306796F8549552792DB2C8A9852864665AFF1C4A8BA2C78152`; release SHA-256 `5A62EF2DB6901E275F4D6EB2C499A0340FCF7BABAA2AB8C6373FF9400A4190EA`; both report 2.4.6 (13) |
+| 2.4.6 alternate-device install/start | PASS_SMOKE on SM-S942U: profile upgraded in place from 2.4.5 (12) to 2.4.6 (13), activity and camera TextureView started without a fatal exception |
+| 2.4.6 slight-motion pickup and final sweep | PASS_REPLAY: one verified collection after minor IMU motion and return to anchor, then center/right/left coverage and exactly one completion; physical pickup remains pending |
 | Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in 2.4.5 and final merged release inspection found none of the diagnostic strings |
 | Pan/scene-anchor safety | PARTIAL: no false collection occurred, but the pre-fix 2.4.4 trace reproduced inventory inflation during pan; automated regression covers the final correction, physical confirmation remains pending |
 | Physical detector recall | FAIL in observed scene: snapshot 2 with at least 3 visible toys |
-| Full physical cleanup/completion | PENDING; no accepted stable-view removal through celebration |
+| Full physical cleanup/completion | PENDING for 2.4.6; the exact profile is installed, but no operator pickup through celebration has been executed yet |
 | Scenario corpus recorded | PENDING |
 | Perception accuracy thresholds calibrated | PENDING |
 | Sustained thermal/battery limits accepted | PENDING |

@@ -36,6 +36,8 @@ class ToyTracker {
     DateTime timestamp,
     SceneState sceneState, {
     double sceneMotion = 0,
+    bool deviceMotionAvailable = false,
+    double deviceMotion = 0,
   }) {
     // Open-set regions are proposals, not semantic toy observations. They may
     // support fusion, but cannot move or keep a confirmed identity alive.
@@ -108,6 +110,7 @@ class ToyTracker {
             ? timestamp
             : previous.lastInteractionAt,
         lostDuringCameraMotion: false,
+        cameraMotionAtLoss: 0,
         clearMissingSince: true,
       );
       transitions.add(
@@ -125,6 +128,9 @@ class ToyTracker {
       final previous = _tracks[index];
       if (previous.presence == TrackPresence.collected) continue;
       final canSearch = sceneState == SceneState.stable;
+      final lossAlreadyStarted = previous.presence == TrackPresence.occluded ||
+          previous.presence == TrackPresence.missingCandidate ||
+          previous.presence == TrackPresence.confirmedMissing;
       final continuingStableAbsence =
           previous.presence == TrackPresence.missingCandidate ||
               previous.presence == TrackPresence.confirmedMissing;
@@ -133,6 +139,23 @@ class ToyTracker {
           : 0;
       final presence =
           canSearch ? TrackPresence.missingCandidate : TrackPresence.occluded;
+      // Once IMU evidence is available it is the causal source for camera
+      // motion. Visual scene motion also reacts to the hand and the toy
+      // leaving the ROI, so using it here would poison a real pickup as a
+      // camera pan. Obscuration remains unsafe regardless of sensor motion.
+      final frameMotionAtLoss = switch (sceneState) {
+        SceneState.obscured => math.max(deviceMotion, 0.75),
+        SceneState.changed || SceneState.moving => deviceMotionAvailable
+            ? deviceMotion
+            : math.max(
+                sceneMotion,
+                sceneState == SceneState.changed ? 0.75 : 0.07,
+              ),
+        _ => deviceMotionAvailable ? deviceMotion : sceneMotion,
+      };
+      final cameraMotionAtLoss = lossAlreadyStarted
+          ? math.max(previous.cameraMotionAtLoss, frameMotionAtLoss)
+          : frameMotionAtLoss;
       _tracks[index] = previous.copyWith(
         missingFrames: missingFrames,
         presence: presence,
@@ -143,10 +166,12 @@ class ToyTracker {
                 : timestamp)
             : null,
         clearMissingSince: !canSearch,
-        // Preserve how this disappearance started. Once camera motion caused
-        // the loss, later stationary frames cannot turn it into a pickup.
+        // Preserve how this disappearance started. Only the disappearance
+        // verifier may later recover a minor-motion loss after stronger
+        // return-to-anchor evidence; this tracker never upgrades it itself.
         lostDuringCameraMotion:
-            previous.lostDuringCameraMotion || !canSearch || sceneMotion > 0.06,
+            previous.lostDuringCameraMotion || cameraMotionAtLoss > 0.06,
+        cameraMotionAtLoss: cameraMotionAtLoss,
       );
       if (missingFrames == 1) {
         transitions.add(

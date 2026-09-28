@@ -5,14 +5,14 @@ import 'package:toyvision_realtime/domain/scene/spatial_observation.dart';
 import 'package:toyvision_realtime/perception/coverage/room_coverage_tracker.dart';
 
 void main() {
-  test('rotation vector covers left, center, right and floor', () {
-    final tracker = RoomCoverageTracker(minimumDirectionalSectors: 4);
+  test('floor-first horizontal sweep has an achievable completion path', () {
+    final tracker = RoomCoverageTracker(minimumHorizontalRegions: 3);
 
-    tracker.observe(_scene(yaw: 0, pitch: 0, orientation: true));
-    tracker.observe(_scene(yaw: -35, pitch: 0, orientation: true));
-    tracker.observe(_scene(yaw: 35, pitch: 0, orientation: true));
-    final result =
-        tracker.observe(_scene(yaw: 0, pitch: 25, orientation: true));
+    tracker.observe(_scene(yaw: 0, pitch: 55, orientation: true));
+    tracker.observe(_scene(yaw: -35, pitch: 55, orientation: true));
+    final result = tracker.observe(
+      _scene(yaw: 35, pitch: 55, orientation: true),
+    );
 
     expect(result.coverage, 1);
     expect(
@@ -21,14 +21,13 @@ void main() {
         RoomCoverageSector.left,
         RoomCoverageSector.center,
         RoomCoverageSector.right,
-        RoomCoverageSector.floorCenter,
       ]),
     );
-    expect(result.nextRequired, isNotNull);
+    expect(result.nextRequired, isNull);
   });
 
   test('unsupported devices fall back to distinct visual viewpoints', () {
-    final tracker = RoomCoverageTracker(minimumFallbackViewpoints: 2);
+    final tracker = RoomCoverageTracker(minimumVisualViewpoints: 2);
 
     final first = tracker.observe(_scene(embedding: const [1, 0]));
     final second = tracker.observe(_scene(embedding: const [0, 1]));
@@ -39,7 +38,7 @@ void main() {
   });
 
   test('camera motion preserves directional progress already earned', () {
-    final tracker = RoomCoverageTracker(minimumDirectionalSectors: 4);
+    final tracker = RoomCoverageTracker(minimumHorizontalRegions: 3);
 
     final stable = tracker.observe(
       _scene(yaw: 0, pitch: 0, orientation: true),
@@ -55,10 +54,31 @@ void main() {
       ),
     );
 
-    expect(stable.coverage, 0.25);
-    expect(moving.coverage, 0.25);
+    expect(stable.coverage, 0.5);
+    expect(moving.coverage, 0.5);
     expect(moving.usesDeviceOrientation, isTrue);
     expect(moving.visited, contains(RoomCoverageSector.center));
+  });
+
+  test('distinct stable views can finish even when orientation is available',
+      () {
+    final tracker = RoomCoverageTracker(
+      minimumHorizontalRegions: 3,
+      minimumVisualViewpoints: 3,
+    );
+
+    tracker.observe(
+      _scene(yaw: 0, pitch: 55, orientation: true, embedding: const [1, 0, 0]),
+    );
+    tracker.observe(
+      _scene(yaw: 5, pitch: 55, orientation: true, embedding: const [0, 1, 0]),
+    );
+    final result = tracker.observe(
+      _scene(yaw: 10, pitch: 55, orientation: true, embedding: const [0, 0, 1]),
+    );
+
+    expect(result.coverage, 1);
+    expect(result.nextRequired, isNull);
   });
 }
 

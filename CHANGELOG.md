@@ -3,6 +3,38 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.6] - 2026-09-28
+
+### Changed
+
+- La comprobación final usa una máquina de estados explícita: espera de
+  recogidas, recorrido del cuarto, confirmación de vacío y finalización.
+- La cobertura puede completarse con izquierda/centro/derecha o con vistas
+  visuales estables distintas; la orientación del teléfono aporta evidencia,
+  pero ya no puede crear un sector físicamente inalcanzable.
+- La pantalla de diagnóstico muestra la etapa final y la intensidad de
+  movimiento que existía cuando se perdió cada objeto.
+
+### Fixed
+
+- El flujo deja de quedar bloqueado para siempre cuando la cámara ya apuntaba
+  al suelo al empezar la comprobación del cuarto.
+- Un movimiento leve del teléfono durante una recogida puede recuperarse al
+  volver al ancla visual original y confirmar fondo revelado durante una
+  ausencia sostenida.
+- El movimiento visual causado por una mano o por retirar el objeto deja de
+  confundirse con movimiento de cámara cuando hay evidencia IMU disponible.
+- Una oclusión o un paneo fuerte siguen sin poder producir una recogida, una
+  habitación limpia ni una celebración falsa.
+- La ventana de vacío tolera pausas breves entre frames estables sin contar el
+  tiempo inestable como evidencia ni reiniciar indefinidamente el progreso.
+
+### Release notes
+
+- Versión Flutter: `2.4.6+13`.
+- La validación física completa continúa siendo obligatoria antes de declarar
+  que la percepción está certificada para producción.
+
 ## [2.4.5] - 2026-09-28
 
 ### Added
