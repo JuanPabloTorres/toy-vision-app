@@ -13,12 +13,16 @@ class DeveloperVisionOverlay extends StatelessWidget {
     super.key,
     required this.result,
     required this.phase,
+    required this.collected,
+    required this.remainingEstimate,
     this.activeToyId,
     this.completionEvidence,
   });
 
   final PerceptionResult result;
   final CleanupPhase phase;
+  final int collected;
+  final int remainingEstimate;
   final int? activeToyId;
   final CompletionEvidence? completionEvidence;
 
@@ -28,6 +32,8 @@ class DeveloperVisionOverlay extends StatelessWidget {
           painter: _DeveloperVisionPainter(
             result,
             phase,
+            collected,
+            remainingEstimate,
             activeToyId,
             completionEvidence,
           ),
@@ -39,12 +45,16 @@ class _DeveloperVisionPainter extends CustomPainter {
   const _DeveloperVisionPainter(
     this.result,
     this.phase,
+    this.collected,
+    this.remainingEstimate,
     this.activeToyId,
     this.completionEvidence,
   );
 
   final PerceptionResult result;
   final CleanupPhase phase;
+  final int collected;
+  final int remainingEstimate;
   final int? activeToyId;
   final CompletionEvidence? completionEvidence;
 
@@ -103,21 +113,14 @@ class _DeveloperVisionPainter extends CustomPainter {
       );
     }
 
-    final scene = result.worldModel.scene;
-    final completion = completionEvidence;
-    final summary = 'DEV  frame ${result.metrics.frameId} '
-        'phase:${phase.name} activeToy:${activeToyId ?? '-'}\n'
-        'scene:${scene.state.name} '
-        'prev:${scene.similarityToPrevious.toStringAsFixed(2)} '
-        'anchor:${scene.similarityToStableAnchor.toStringAsFixed(2)} '
-        'stable:${scene.stableFrameCount}  '
-        'YOLO:${result.metrics.detectorProposalCount} '
-        'OPEN:${result.metrics.openSetProposalCount} '
-        'TOY:${result.acceptedObservations.length} '
-        'gyroMotion:${scene.spatial.normalizedMotion.toStringAsFixed(2)}\n'
-        'roomCoverage:${completion?.sceneCoverage.toStringAsFixed(2) ?? '-'} '
-        'confirmedToys:${completion?.confirmedToyCount ?? '-'} '
-        'cleanDecision:${completion?.cleanDecision.name ?? '-'}';
+    final summary = buildDeveloperVisionSummary(
+      result: result,
+      phase: phase,
+      collected: collected,
+      remainingEstimate: remainingEstimate,
+      activeToyId: activeToyId,
+      completionEvidence: completionEvidence,
+    );
     final text = TextPainter(
       text: TextSpan(
         text: summary,
@@ -129,7 +132,7 @@ class _DeveloperVisionPainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-      maxLines: 5,
+      maxLines: 8,
     )..layout(maxWidth: size.width - 16);
     text.paint(canvas, const Offset(8, 116));
   }
@@ -169,7 +172,61 @@ class _DeveloperVisionPainter extends CustomPainter {
   bool shouldRepaint(_DeveloperVisionPainter oldDelegate) =>
       oldDelegate.result.metrics.frameId != result.metrics.frameId ||
       oldDelegate.phase != phase ||
+      oldDelegate.collected != collected ||
+      oldDelegate.remainingEstimate != remainingEstimate ||
       oldDelegate.activeToyId != activeToyId ||
       oldDelegate.completionEvidence?.cleanDecision !=
-          completionEvidence?.cleanDecision;
+          completionEvidence?.cleanDecision ||
+      oldDelegate.completionEvidence?.noToyDuration !=
+          completionEvidence?.noToyDuration ||
+      oldDelegate.completionEvidence?.sceneCoverage !=
+          completionEvidence?.sceneCoverage;
+}
+
+String buildDeveloperVisionSummary({
+  required PerceptionResult result,
+  required CleanupPhase phase,
+  required int collected,
+  required int remainingEstimate,
+  int? activeToyId,
+  CompletionEvidence? completionEvidence,
+}) {
+  final scene = result.worldModel.scene;
+  final completion = completionEvidence;
+  final reappeared = result.transitions
+      .where((transition) => transition.type == TrackTransitionType.reappeared)
+      .map((transition) => transition.trackId)
+      .join(',');
+  final transition = result.transitions.isEmpty
+      ? '-'
+      : result.transitions
+          .map((item) => '${item.type.name}#${item.trackId}')
+          .join(',');
+  final targetRemoval =
+      activeToyId == null ? null : result.disappearanceEvidence[activeToyId];
+  final blockers = completion?.blockingReasons.isEmpty ?? true
+      ? '-'
+      : completion!.blockingReasons.join('|');
+
+  return 'DEV frame:${result.metrics.frameId} PHASE:${phase.name} '
+      'ACTIVE:${activeToyId ?? '-'}\n'
+      'YOLO:${result.metrics.detectorProposalCount} '
+      'OPEN:${result.metrics.openSetProposalCount} '
+      'CONF:${result.acceptedObservations.length} '
+      'CAND:${result.uncertainObservations.length}\n'
+      'TRACK active:${result.worldModel.activeTracks.length} '
+      'missing:${result.worldModel.missingTracks.length} '
+      'collected:$collected remaining:$remainingEstimate\n'
+      'SCENE:${scene.state.name} verify:${scene.canVerifyDisappearance} '
+      'motion:${scene.spatial.normalizedMotion.toStringAsFixed(2)} '
+      'anchor:${scene.similarityToStableAnchor.toStringAsFixed(2)}\n'
+      'REMOVE:${targetRemoval?.confirmed == true ? 'CONFIRMED' : 'WAIT'} '
+      'missingMs:${targetRemoval?.missingDuration.inMilliseconds ?? '-'} '
+      'reacquired:${reappeared.isEmpty ? 'NO' : reappeared} '
+      'transition:$transition\n'
+      'ROOM coverage:${completion?.sceneCoverage.toStringAsFixed(2) ?? '-'} '
+      'stable:${completion?.sceneStable ?? '-'} '
+      'tracking:${completion?.cameraTrackingGood ?? '-'} '
+      'emptyMs:${completion?.noToyDuration.inMilliseconds ?? '-'}\n'
+      'DECISION:${completion?.cleanDecision.name ?? '-'} BLOCK:$blockers';
 }

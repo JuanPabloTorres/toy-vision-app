@@ -3,6 +3,19 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.1] - 2026-09-28
+
+### Added
+
+- Overlay de certificación disponible sólo en debug/profile con fase, conteos
+  de propuestas y tracks, progreso, movimiento, reaparición, evidencia de
+  retirada, cobertura, ventana limpia, decisión y bloqueadores.
+
+### Changed
+
+- El diagnóstico de cámara queda excluido de builds release y permanece
+  separado del modo infantil.
+
 ## [2.4.0] - 2026-09-27
 
 ### Added

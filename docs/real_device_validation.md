@@ -58,11 +58,14 @@ coverage sectors, background-reveal score, optional depth score and every
 |---|---|
 | Galaxy S25 connected | `BLOCKED_PHYSICAL_DEVICE_WRONG_MODEL`: ADB exposes SM-S942U (`m1q`, Galaxy S26/API 37), not an SM-S93* S25 |
 | Alternate-device smoke/camera/model | PASS on SM-S942U; this does not satisfy the S25 gate |
+| 2.4.1 diagnostic overlay | PASS on profile SM-S942U: phase, tracks, removal, reacquisition, coverage, clean window, decision and blockers visible |
+| 2.4.1 negative physical window | PASS: 1009 metadata-only frames / 261.3 s, 0 collections and 0 completions; no controlled pickup was executed |
 | Pan/scene-anchor safety | PASS on final instrumented SM-S942U run: 308 frames, 0 collections while viewpoint diverged from anchor |
 | Physical detector recall | FAIL in observed scene: snapshot 2 with at least 3 visible toys |
 | Full physical cleanup/completion | PENDING; no accepted stable-view removal through celebration |
 | Scenario corpus recorded | PENDING |
 | Perception accuracy thresholds calibrated | PENDING |
 | Sustained thermal/battery limits accepted | PENDING |
+| Preliminary profile performance | PARTIAL: native p95 164.06 ms, FPS p50 3.99, 719605 KB PSS, thermal status 1; recorder overhead present |
 | 3D/Rive/Lottie/audio verified on device | PARTIAL: invalid generic Rive HUD found and disabled; remaining channels pending |
 | Commercial detector license resolved | PENDING |
