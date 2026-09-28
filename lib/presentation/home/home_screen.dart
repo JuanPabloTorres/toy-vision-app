@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_router.dart';
 import '../../application/cleanup/cleanup_controller.dart';
+import '../../application/feedback/audio_feedback_service.dart';
 import '../../application/home/home_progress.dart';
 import '../../infrastructure/feedback/cleanup_feedback_coordinator.dart';
 import '../../ui/app_assets.dart';
@@ -41,6 +44,12 @@ class HomeScreen extends ConsumerWidget {
 
   void _startCleanup(BuildContext context, WidgetRef ref) {
     ref.read(cleanupFeedbackCoordinatorProvider);
+    unawaited(
+      ref.read(audioFeedbackServiceProvider).play(
+            AudioCue.gameReady,
+            enabledChannels: ref.read(enabledAudioChannelsProvider),
+          ),
+    );
     ref.read(cleanupControllerProvider.notifier).start();
     Navigator.of(context).pushNamed(AppRoutes.cleanup);
   }
