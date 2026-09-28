@@ -161,7 +161,7 @@ class CleanupSessionService {
     if (roomClean.verificationStarted) {
       events.add(EmptyRoomVerificationStarted(perception.worldModel.updatedAt));
     }
-    if (roomClean.decision == RoomCleanDecision.clean &&
+    if (roomClean.decision == RoomCleanDecision.roomClean &&
         session.status == CleanupStatus.active) {
       session = session.complete(perception.worldModel.updatedAt);
       _session = session;

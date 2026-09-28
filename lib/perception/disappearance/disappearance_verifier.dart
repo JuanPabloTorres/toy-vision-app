@@ -2,6 +2,7 @@ import '../../core/math/vector_math.dart';
 import '../../domain/scene/scene_descriptor.dart';
 import '../../domain/toy/toy_track.dart';
 import '../perception_models.dart';
+import '../fusion/sensor_fusion_engine.dart';
 
 enum RemovalDecision {
   keepTracking,
@@ -27,6 +28,7 @@ abstract interface class ToyRemovalVerifier {
     required bool occluded,
     required bool reidentificationCandidate,
     required DateTime timestamp,
+    SensorFusionEvidence? fusionEvidence,
   });
 }
 
@@ -53,6 +55,7 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
     required bool occluded,
     required bool reidentificationCandidate,
     required DateTime timestamp,
+    SensorFusionEvidence? fusionEvidence,
   }) {
     final missingSince = track.missingSince ?? timestamp;
     final duration = timestamp.difference(missingSince);
@@ -87,8 +90,20 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
     final durationEvidence = (duration.inMilliseconds / 2000).clamp(0.0, 1.0);
     final localChangeEvidence =
         ((0.95 - localSimilarity) / 0.20).clamp(0.0, 1.0);
+    final fused = fusionEvidence ??
+        SensorFusionEvidence(
+          deviceMotion: 0,
+          backgroundRevealScore: localChangeEvidence,
+          cameraTrackingGood: true,
+          motionAvailable: false,
+        );
     final interactionStrength =
         (track.interactionEvidence / 0.25).clamp(0.0, 1.0);
+    final corroboratingSignalCount = [
+      fused.backgroundRevealed,
+      fused.depthConfirmsRemoval,
+      interactionStrength >= 0.5,
+    ].where((value) => value).length;
     final confidence = ((track.confirmedToy ? 0.10 : 0) +
             (stableObservation ? 0.10 : 0) +
             missingEvidence * 0.15 +
@@ -110,6 +125,10 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
       if (occluded) 'occlusion_possible',
       if (reidentificationCandidate) 'possible_reidentification',
       if (!interactionObserved) 'physical_interaction_not_observed',
+      if (!fused.cameraTrackingGood) 'camera_tracking_not_reliable',
+      if (fused.motionAvailable && fused.deviceMotion > 0.55)
+        'device_motion_too_high',
+      if (corroboratingSignalCount == 0) 'no_corroborating_removal_signal',
       if (confidence < confirmationThreshold) 'confidence_below_safety_gate',
     ];
     final confirmed = rejectionReasons.isEmpty;
@@ -127,6 +146,11 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
       stableSceneWindow: stableSceneWindow,
       interactionObserved: interactionObserved,
       reidentificationCandidate: reidentificationCandidate,
+      deviceMotion: fused.deviceMotion,
+      backgroundRevealScore: fused.backgroundRevealScore,
+      depthChangeScore: fused.depthChangeScore,
+      cameraTrackingGood: fused.cameraTrackingGood,
+      corroboratingSignalCount: corroboratingSignalCount,
       rejectionReasons: rejectionReasons,
       confidence: confidence,
       confirmed: confirmed,

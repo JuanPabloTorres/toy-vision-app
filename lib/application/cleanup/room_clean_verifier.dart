@@ -1,16 +1,14 @@
-import 'dart:math' as math;
-
-import '../../core/math/vector_math.dart';
 import '../../domain/cleanup/cleanup_session.dart';
 import '../../domain/scene/room_snapshot.dart';
 import '../../domain/scene/room_world_model.dart';
+import '../../perception/coverage/room_coverage_tracker.dart';
 
 enum CompletionConfidence { insufficient, probable, strong }
 
 enum RoomCleanDecision {
-  keepChecking,
   toyFound,
-  clean,
+  needMoreCoverage,
+  roomClean,
 }
 
 class RoomCleanPolicy {
@@ -20,6 +18,7 @@ class RoomCleanPolicy {
     this.minimumViewpoints = 2,
     this.minimumCameraMotion = 0.08,
     this.viewpointSimilarityThreshold = 0.92,
+    this.minimumDirectionalSectors = 4,
   });
 
   final Duration minimumCleanDuration;
@@ -27,6 +26,7 @@ class RoomCleanPolicy {
   final int minimumViewpoints;
   final double minimumCameraMotion;
   final double viewpointSimilarityThreshold;
+  final int minimumDirectionalSectors;
 }
 
 class CompletionEvidence {
@@ -37,6 +37,15 @@ class CompletionEvidence {
     required this.sceneCoverage,
     required this.uncertainTracks,
     required List<String> blockingReasons,
+    this.cleanDecision = RoomCleanDecision.needMoreCoverage,
+    this.guidance = 'Miremos alrededor una vez más.',
+    this.coverageSectors = const [],
+    this.confirmedToyCount = 0,
+    this.candidateToyCount = 0,
+    this.noToyDuration = Duration.zero,
+    this.sceneStable = false,
+    this.cameraTrackingGood = false,
+    this.depthConsistency,
   }) : blockingReasons = List<String>.unmodifiable(blockingReasons);
 
   final CompletionConfidence confidence;
@@ -45,6 +54,15 @@ class CompletionEvidence {
   final double sceneCoverage;
   final int uncertainTracks;
   final List<String> blockingReasons;
+  final RoomCleanDecision cleanDecision;
+  final String guidance;
+  final List<String> coverageSectors;
+  final int confirmedToyCount;
+  final int candidateToyCount;
+  final Duration noToyDuration;
+  final bool sceneStable;
+  final bool cameraTrackingGood;
+  final double? depthConsistency;
 }
 
 class RoomCleanEvaluation {
@@ -79,15 +97,17 @@ abstract interface class RoomCleanVerifier {
 class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
   EvidenceBasedRoomCleanVerifier({
     this.policy = const RoomCleanPolicy(),
-  });
+  }) : _coverageTracker = RoomCoverageTracker(
+          minimumDirectionalSectors: policy.minimumDirectionalSectors,
+          minimumFallbackViewpoints: policy.minimumViewpoints,
+          viewpointSimilarityThreshold: policy.viewpointSimilarityThreshold,
+        );
 
   final RoomCleanPolicy policy;
 
   DateTime? _verificationStartedAt;
   DateTime? _cleanWindowStartedAt;
-  List<double>? _previousSceneEmbedding;
-  final List<List<double>> _viewpoints = [];
-  double _cameraMotion = 0;
+  final RoomCoverageTracker _coverageTracker;
   int _cleanFrames = 0;
 
   @override
@@ -134,7 +154,7 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
       return RoomCleanEvaluation(
         decision: wasVerifying && toyPresent
             ? RoomCleanDecision.toyFound
-            : RoomCleanDecision.keepChecking,
+            : RoomCleanDecision.needMoreCoverage,
         evidence: CompletionEvidence(
           confidence: snapshotEstablished && ratio >= 0.7
               ? CompletionConfidence.probable
@@ -144,6 +164,17 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
           sceneCoverage: 0,
           uncertainTracks: uncertainTracks,
           blockingReasons: blockers,
+          cleanDecision: wasVerifying && toyPresent
+              ? RoomCleanDecision.toyFound
+              : RoomCleanDecision.needMoreCoverage,
+          guidance: toyPresent
+              ? '¡Encontré otro juguete! Vamos a recogerlo.'
+              : 'Necesito una recogida confirmada antes de revisar el cuarto.',
+          confirmedToyCount: remainingStable,
+          candidateToyCount: uncertainTracks,
+          sceneStable: world.scene.canVerifyDisappearance,
+          cameraTrackingGood: world.scene.spatial.cameraTrackingGood,
+          depthConsistency: world.scene.spatial.depthConsistency,
         ),
         verifying: false,
         verificationStarted: false,
@@ -152,10 +183,11 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
 
     final verificationStarted = _verificationStartedAt == null;
     _verificationStartedAt ??= world.updatedAt;
-    _observeViewpoint(world);
+    final coverageSnapshot = _coverageTracker.observe(world.scene);
 
     final sceneStable = world.scene.canVerifyDisappearance;
-    if (uncertainTracks == 0 && sceneStable) {
+    final cameraTrackingGood = world.scene.spatial.cameraTrackingGood;
+    if (uncertainTracks == 0 && sceneStable && cameraTrackingGood) {
       _cleanWindowStartedAt ??= world.updatedAt;
       _cleanFrames += 1;
     } else {
@@ -163,20 +195,13 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
       _cleanFrames = 0;
     }
 
-    final viewpointCoverage = policy.minimumViewpoints <= 0
-        ? 1.0
-        : (_viewpoints.length / policy.minimumViewpoints).clamp(0.0, 1.0);
-    final motionCoverage = policy.minimumCameraMotion <= 0
-        ? 1.0
-        : (_cameraMotion / policy.minimumCameraMotion).clamp(0.0, 1.0);
-    final coverage = math.min(viewpointCoverage, motionCoverage);
+    final coverage = coverageSnapshot.coverage;
     final cleanDuration = _cleanWindowStartedAt == null
         ? Duration.zero
         : world.updatedAt.difference(_cleanWindowStartedAt!);
     final cleanWindowComplete = cleanDuration >= policy.minimumCleanDuration &&
         _cleanFrames >= policy.minimumCleanFrames;
-    final coverageComplete = _viewpoints.length >= policy.minimumViewpoints &&
-        _cameraMotion >= policy.minimumCameraMotion;
+    final coverageComplete = coverage >= 1;
     final blockers = <String>[
       if (!snapshotEstablished) 'initial_snapshot_not_established',
       if (session.confirmedCollected == 0) 'no_verified_progress',
@@ -185,13 +210,16 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
       if (unresolved.isNotEmpty) 'ambiguous_snapshot_tracks',
       if (uncertainTracks > 0) 'ambiguous_toy_candidates',
       if (!sceneStable) 'scene_not_stable',
+      if (!cameraTrackingGood) 'camera_tracking_not_reliable',
       if (!coverageComplete) 'room_coverage_incomplete',
       if (!cleanWindowComplete) 'clean_window_incomplete',
     ];
     final clean = blockers.isEmpty;
+    final decision = clean
+        ? RoomCleanDecision.roomClean
+        : RoomCleanDecision.needMoreCoverage;
     return RoomCleanEvaluation(
-      decision:
-          clean ? RoomCleanDecision.clean : RoomCleanDecision.keepChecking,
+      decision: decision,
       evidence: CompletionEvidence(
         confidence:
             clean ? CompletionConfidence.strong : CompletionConfidence.probable,
@@ -200,38 +228,49 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
         sceneCoverage: coverage,
         uncertainTracks: uncertainTracks,
         blockingReasons: blockers,
+        cleanDecision: decision,
+        guidance: _guidanceFor(coverageSnapshot, blockers),
+        coverageSectors:
+            coverageSnapshot.visited.map((sector) => sector.name).toList(),
+        confirmedToyCount: remainingStable,
+        candidateToyCount: uncertainTracks,
+        noToyDuration: cleanDuration,
+        sceneStable: sceneStable,
+        cameraTrackingGood: cameraTrackingGood,
+        depthConsistency: world.scene.spatial.depthConsistency,
       ),
       verifying: !clean,
       verificationStarted: verificationStarted,
     );
   }
 
-  void _observeViewpoint(RoomWorldModel world) {
-    final embedding = world.scene.embedding;
-    final previous = _previousSceneEmbedding;
-    if (previous != null) {
-      final stepMotion =
-          (1 - cosineSimilarity(previous, embedding)).clamp(0, 1);
-      if (stepMotion <= 0.65) _cameraMotion += stepMotion;
+  String _guidanceFor(
+    RoomCoverageSnapshot coverage,
+    List<String> blockers,
+  ) {
+    if (blockers.contains('ambiguous_toy_candidates')) {
+      return 'Espera un momento: Tobi está comprobando algo que vio.';
     }
-    _previousSceneEmbedding = embedding;
-    if (embedding.isNotEmpty &&
-        _viewpoints.every(
-          (viewpoint) =>
-              cosineSimilarity(viewpoint, embedding) <
-              policy.viewpointSimilarityThreshold,
-        )) {
-      _viewpoints.add(List<double>.from(embedding));
+    if (blockers.contains('scene_not_stable') ||
+        blockers.contains('camera_tracking_not_reliable')) {
+      return 'Mantén la cámara quieta un momento.';
     }
+    return switch (coverage.nextRequired) {
+      RoomCoverageSector.left => 'Miremos despacio hacia la izquierda.',
+      RoomCoverageSector.center => 'Miremos el centro del cuarto.',
+      RoomCoverageSector.right => 'Ahora miremos hacia la derecha.',
+      RoomCoverageSector.floorLeft => 'Miremos el piso a la izquierda.',
+      RoomCoverageSector.floorCenter => 'Bajemos la cámara para mirar el piso.',
+      RoomCoverageSector.floorRight => 'Miremos el piso a la derecha.',
+      null => 'Mantén el cuarto visible un momento más.',
+    };
   }
 
   @override
   void reset() {
     _verificationStartedAt = null;
     _cleanWindowStartedAt = null;
-    _previousSceneEmbedding = null;
-    _viewpoints.clear();
-    _cameraMotion = 0;
+    _coverageTracker.reset();
     _cleanFrames = 0;
   }
 }

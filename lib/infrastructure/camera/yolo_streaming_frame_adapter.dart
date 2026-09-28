@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../domain/toy/normalized_box.dart';
+import '../../domain/scene/spatial_observation.dart';
 import '../../perception/perception_models.dart';
 
 class CameraFrameAdapterException implements Exception {
@@ -19,6 +20,7 @@ class YoloStreamingFrameAdapter {
   CameraPerceptionFrame adapt(
     Map<String, dynamic> payload, {
     DateTime? timestamp,
+    SpatialObservation spatial = const SpatialObservation.unavailable(),
   }) {
     final bytes = _imageBytes(payload['originalImage']);
     if (bytes == null || bytes.isEmpty) {
@@ -54,6 +56,7 @@ class YoloStreamingFrameAdapter {
       // sends the original sensor bitmap. The analyzer must orient the pixels
       // to this upright coordinate space before using the boxes.
       detectorCoordinatesAreUpright: true,
+      spatial: spatial,
     );
   }
 

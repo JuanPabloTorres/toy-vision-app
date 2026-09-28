@@ -5,6 +5,7 @@ import 'package:toyvision_realtime/domain/scene/room_snapshot.dart';
 import 'package:toyvision_realtime/domain/scene/room_world_model.dart';
 import 'package:toyvision_realtime/domain/scene/scene_descriptor.dart';
 import 'package:toyvision_realtime/domain/scene/scene_state.dart';
+import 'package:toyvision_realtime/domain/scene/spatial_observation.dart';
 import 'package:toyvision_realtime/domain/toy/normalized_box.dart';
 import 'package:toyvision_realtime/domain/toy/toy_observation.dart';
 import 'package:toyvision_realtime/domain/toy/toy_track.dart';
@@ -24,7 +25,7 @@ void main() {
       uncertainTracks: 0,
     );
 
-    expect(evaluation.decision, RoomCleanDecision.keepChecking);
+    expect(evaluation.decision, RoomCleanDecision.needMoreCoverage);
     expect(
       evaluation.evidence.blockingReasons,
       contains('initial_snapshot_empty'),
@@ -45,7 +46,7 @@ void main() {
       uncertainTracks: 0,
     );
 
-    expect(evaluation.decision, RoomCleanDecision.keepChecking);
+    expect(evaluation.decision, RoomCleanDecision.needMoreCoverage);
     expect(
       evaluation.evidence.blockingReasons,
       contains('no_verified_progress'),
@@ -99,9 +100,9 @@ void main() {
     );
 
     expect(first.verificationStarted, isTrue);
-    expect(first.decision, RoomCleanDecision.keepChecking);
-    expect(second.decision, RoomCleanDecision.keepChecking);
-    expect(third.decision, RoomCleanDecision.clean);
+    expect(first.decision, RoomCleanDecision.needMoreCoverage);
+    expect(second.decision, RoomCleanDecision.needMoreCoverage);
+    expect(third.decision, RoomCleanDecision.roomClean);
     expect(third.evidence.sceneCoverage, 1);
   });
 
@@ -134,6 +135,52 @@ void main() {
 
     expect(evaluation.decision, RoomCleanDecision.toyFound);
     expect(evaluation.verifying, isFalse);
+  });
+
+  test('directional coverage explains what remains and completes', () {
+    final origin = DateTime.utc(2026);
+    final snapshot = _snapshot(origin);
+    final session = CleanupSession.start(
+      id: 'session',
+      snapshot: snapshot,
+      startedAt: origin.subtract(const Duration(seconds: 5)),
+    ).collect(1);
+    final verifier = EvidenceBasedRoomCleanVerifier(
+      policy: const RoomCleanPolicy(
+        minimumCleanDuration: Duration(seconds: 2),
+        minimumCleanFrames: 3,
+        minimumDirectionalSectors: 4,
+      ),
+    );
+
+    final observations = [
+      (0, 0.0, 0.0),
+      (700, -35.0, 0.0),
+      (1400, 35.0, 0.0),
+      (2200, 0.0, 25.0),
+    ];
+    RoomCleanEvaluation? evaluation;
+    for (final observation in observations) {
+      evaluation = verifier.evaluate(
+        snapshot: snapshot,
+        world: _world(
+          origin.add(Duration(milliseconds: observation.$1)),
+          const [1, 0],
+          spatial: _spatial(
+            origin,
+            yaw: observation.$2,
+            pitch: observation.$3,
+          ),
+        ),
+        session: session,
+        uncertainTracks: 0,
+      );
+    }
+
+    expect(evaluation?.decision, RoomCleanDecision.roomClean);
+    expect(evaluation?.evidence.sceneCoverage, 1);
+    expect(evaluation?.evidence.coverageSectors, hasLength(4));
+    expect(evaluation?.evidence.cleanDecision, RoomCleanDecision.roomClean);
   });
 }
 
@@ -173,6 +220,7 @@ RoomWorldModel _world(
   DateTime now,
   List<double> embedding, {
   Map<int, ToyTrack> activeTracks = const {},
+  SpatialObservation spatial = const SpatialObservation.unavailable(),
 }) =>
     RoomWorldModel(
       activeTracks: activeTracks,
@@ -190,6 +238,22 @@ RoomWorldModel _world(
         timestamp: now,
         stableFrameCount: 10,
         similarityToStableAnchor: 0.99,
+        spatial: spatial,
       ),
       updatedAt: now,
+    );
+
+SpatialObservation _spatial(
+  DateTime timestamp, {
+  required double yaw,
+  required double pitch,
+}) =>
+    SpatialObservation(
+      timestamp: timestamp,
+      motionAvailable: true,
+      orientationAvailable: true,
+      gyroscopeRadPerSecond: 0.01,
+      linearAccelerationMetersPerSecond2: 0.01,
+      yawDegrees: yaw,
+      pitchDegrees: pitch,
     );

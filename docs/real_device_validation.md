@@ -25,6 +25,16 @@ commands are documented in `docs/certification_harness.md`.
   to the original viewpoint.
 - Toy disappears during camera movement (must not collect), reappears (same
   identity), then is removed from a stable view (exactly one collection).
+- Confirm IMU instrumentation reports gyro/acceleration/orientation and that a
+  fast 70° rotation leaves the target `temporarilyLost`.
+- Verify a real pickup exposes stable background in the prior ROI and advances
+  automatically to the next target without a blocking review screen.
+- After the last pickup, sweep left, center, right and floor; confirm guidance
+  advances sector by sector while YOLO remains active.
+- During final coverage, introduce a new stable toy; confirmation must cancel,
+  return to cleaning and select the new target.
+- Finish a genuinely empty-room sweep; require exactly one
+  `RoomCleanConfirmed`, persisted progress and celebration.
 - Reintroduce a collected-looking object and verify duplicate protection.
 - Complete the room and verify one completion event and one persisted summary.
 - Background/resume, repeated sessions, battery below 15%, and thermal serious
@@ -38,6 +48,9 @@ Capture native YOLO latency/FPS, end-to-end frame p50/p95, drop rate, peak RSS,
 battery delta over 15 minutes, thermal-state transitions, disappearance
 confirmation latency, track ID switches, false collections, double counts,
 open-set recall, and completion precision.
+Also retain IMU availability, gyro/linear-acceleration peaks, directional
+coverage sectors, background-reveal score, optional depth score and every
+`cleanDecision` transition.
 
 ## Acceptance record
 

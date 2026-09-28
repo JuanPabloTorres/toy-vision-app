@@ -11,12 +11,16 @@ YOLOView streaming payload
    computes scene/crop perceptual descriptors
    optionally generates grid open-set regions
 → SceneStabilityService
+   fuses visual motion with Android IMU / rotation-vector evidence
 → ToyCandidateFusion
    numeric evidence + temporal memory + confirmation blockers
 → ToyTracker / TrackAssociator
    IoU + centroid + embedding + size
-→ OcclusionReasoner / ToyRemovalVerifier
+→ SensorFusionEngine / OcclusionReasoner / ToyRemovalVerifier
+   device motion + background reveal + optional pose/depth evidence
 → RoomWorldModel + metrics + PerceptionTrace
+→ RoomCoverageTracker
+   directional coverage or visual-viewpoint fallback
 ```
 
 The scheduler targets 3–12 FPS depending on discovery, possible disappearance,
@@ -34,3 +38,9 @@ semantic detector confidence; `knownClass` remains diagnostic.
 When diagnosing, compare each stage frame by frame and stop at the first value
 that contradicts ground truth. Threshold changes are downstream policy, not a
 substitute for verifying preprocessing/decoding/evidence.
+
+The current `ultralytics_yolo` surface owns a CameraX session. Android motion
+sensors run alongside it, but ARCore Shared Camera requires a Camera2-owned
+session and disables hardware depth while sharing. Pose/depth fields therefore
+remain optional capability hooks; absence must preserve the complete visual +
+IMU fallback and can never fabricate evidence.
