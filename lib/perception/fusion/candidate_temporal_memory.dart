@@ -58,7 +58,16 @@ class CandidateTemporalMemory {
         final dy = candidate.bounds.centerY - previousBounds.centerY;
         final displacement = math.sqrt(dx * dx + dy * dy);
         final sizeStability = candidate.bounds.sizeSimilarity(previousBounds);
-        final isStationary = displacement <= 0.015 && sizeStability >= 0.9;
+        // Detector boxes jitter by several pixels even while the phone and
+        // object are still. Scale tolerance with the smaller object box so a
+        // small cleanup item is not permanently denied persistence.
+        final objectScale = math.min(
+          math.min(candidate.bounds.width, candidate.bounds.height),
+          math.min(previousBounds.width, previousBounds.height),
+        );
+        final allowedDisplacement = (objectScale * 0.20).clamp(0.015, 0.019);
+        final isStationary =
+            displacement <= allowedDisplacement && sizeStability >= 0.75;
         final stationarySightings =
             isStationary ? previous.stationarySightings + 1 : 1;
         replacements.add(
@@ -72,12 +81,15 @@ class CandidateTemporalMemory {
         // Stability describes the current observation window. Comparing with
         // the first-ever box permanently poisoned a candidate after a camera
         // pan, even once both camera and object had become still again.
-        final positionStability = (1 - displacement / 0.12).clamp(0.0, 1.0);
+        final positionStability =
+            (1 - displacement / (allowedDisplacement * 5)).clamp(0.0, 1.0);
+        final normalizedSizeStability =
+            ((sizeStability - 0.5) / 0.5).clamp(0.0, 1.0);
         scores.add(
           CandidateTemporalEvidence(
             persistence: math.min(1.0, sightings / 3),
             spatialStability: math.min(
-              math.min(positionStability, sizeStability),
+              math.min(positionStability, normalizedSizeStability),
               stationarySightings / 3,
             ),
           ),

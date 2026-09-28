@@ -1,14 +1,14 @@
-"""Export a YOLO-World detector specialized for toys to TFLite.
+r"""Export a YOLO-World detector for child-safe cleanup items to TFLite.
 
 Run this ONCE on a PC (no GPU required, just slow on CPU). It:
   1. downloads the open-vocabulary `yolov8s-world` weights (~25 MB),
-  2. fixes its vocabulary to the toy PROMPTS below (set_classes),
+  2. fixes its vocabulary to the cleanup-item PROMPTS below (set_classes),
   3. exports a standard YOLO detection model to TFLite.
 
-The resulting `toys.tflite` has those toy prompts baked in as its class
+The resulting `cleanup_items.tflite` has those prompts baked in as its class
 names. Drop it into the Flutter app at:
 
-    assets/models/toys.tflite
+    assets/models/cleanup_items.tflite
 
 and Toy Vision uses it automatically on the next launch
 (YoloModelConfig.resolve()).
@@ -22,7 +22,7 @@ Usage (Windows PowerShell):
     .\.venv\Scripts\Activate.ps1
     pip install -r requirements.txt
     python export_toy_model.py
-    # → writes ../../assets/models/toys.tflite
+    # → writes ../../assets/models/cleanup_items.tflite
 
 License note: Ultralytics YOLO-World is AGPL-3.0. Fine for a personal
 prototype; a closed commercial release needs an Ultralytics Enterprise
@@ -57,6 +57,16 @@ PROMPTS = [
     "action figure",
     "puzzle",
     "toy",
+    "clothing",
+    "shirt",
+    "pants",
+    "sock",
+    "shoe",
+    "book",
+    "backpack",
+    "bottle",
+    "cardboard box",
+    "remote control",
 ]
 
 # 480 — the only size that exports within this machine's RAM. 576 and 768
@@ -68,7 +78,7 @@ PROMPTS = [
 IMG_SIZE = 480
 
 OUTPUT_DIR = os.path.join("..", "..", "assets", "models")
-OUTPUT_NAME = "toys.tflite"
+OUTPUT_NAME = "cleanup_items.tflite"
 
 
 def main() -> None:
@@ -77,7 +87,7 @@ def main() -> None:
     print("[toy-export] loading yolov8s-world (downloads on first run)…")
     model = YOLO("yolov8s-world.pt")
 
-    print(f"[toy-export] fixing vocabulary to {len(PROMPTS)} toy classes…")
+    print(f"[toy-export] fixing vocabulary to {len(PROMPTS)} cleanup classes…")
     model.set_classes(PROMPTS)
 
     print("[toy-export] exporting to TFLite (this can take a few minutes)…")

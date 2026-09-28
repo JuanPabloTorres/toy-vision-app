@@ -47,7 +47,7 @@ void main() {
     expect(find.text('TU AVENTURA'), findsOneWidget);
     expect(find.text('Ruta al cuarto limpio'), findsOneWidget);
     expect(find.text('Explora el cuarto'), findsOneWidget);
-    expect(find.text('Encuentra los juguetes'), findsOneWidget);
+    expect(find.text('Encuentra lo que hay que recoger'), findsOneWidget);
     expect(find.text('Ponlos en su lugar'), findsOneWidget);
     expect(find.text('¡Cuarto brillante!'), findsOneWidget);
     expect(find.text('¡EMPIEZA AQUÍ!'), findsOneWidget);
@@ -59,7 +59,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('¡Vamos a recoger!'), findsOneWidget);
-    expect(find.text('Buscando juguetes…'), findsNothing);
+    expect(find.text('Buscando cosas por recoger…'), findsNothing);
 
     final context = tester.element(find.byType(CameraGameScreen));
     final container = ProviderScope.containerOf(context);

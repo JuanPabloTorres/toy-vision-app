@@ -17,7 +17,7 @@ candidates, tracks, and evidence, but Kid Mode must not become a CV dashboard.
 
 - Flutter/Dart with Riverpod.
 - `ultralytics_yolo` 0.4.3 and bundled
-  `assets/models/toys.tflite` for on-device CameraX/TFLite proposals.
+  `assets/models/cleanup_items.tflite` for on-device CameraX/TFLite proposals.
 - Pixel analysis, open-set regions, perceptual descriptors, fusion, tracking,
   scene reasoning, and disappearance verification in Dart.
 - SQLite for privacy-safe session, room, reward-ledger, streak, and achievement

@@ -11,3 +11,11 @@ tf_keras==2.19.0
 # Pinned indirectly by ultralytics, listed for clarity.
 onnx==1.21.0
 onnxruntime==1.26.0
+onnxslim==0.1.96
+onnx2tf==1.28.8
+onnx-graphsurgeon==0.6.1
+sng4onnx==2.0.1
+ai-edge-litert==2.2.0
+
+# Text encoder used by YOLO-World set_classes(). Pin the exact source commit.
+clip @ git+https://github.com/ultralytics/CLIP.git@a13192fb972e5fcbf4e0b5987dd0f4fc5ab64601

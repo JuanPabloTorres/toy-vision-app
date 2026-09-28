@@ -6,13 +6,13 @@ class YoloModelConfig {
   const YoloModelConfig({
     this.modelPath = customModelAsset,
     this.task = YOLOTask.detect,
-    this.confidenceThreshold = 0.25,
+    this.confidenceThreshold = 0.12,
     this.iouThreshold = 0.5,
     this.cameraResolution = '720p',
     this.useGpu = gpuEnabled,
   });
 
-  static const String customModelAsset = 'assets/models/toys.tflite';
+  static const String customModelAsset = 'assets/models/cleanup_items.tflite';
   static const bool gpuEnabled = bool.fromEnvironment('TOYVISION_USE_GPU');
 
   final String modelPath;

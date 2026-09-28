@@ -53,7 +53,7 @@ class _ProgressContent extends StatelessWidget {
       children: [
         const ToyPageHero(
           mascot: Tobi3dStage(enable3d: false, fallbackSize: 96),
-          message: '¡Cada juguete guardado hace brillar tu aventura!',
+          message: '¡Cada cosa guardada hace brillar tu aventura!',
         ),
         const SizedBox(height: AppSpacing.lg),
         LayoutBuilder(
@@ -127,7 +127,7 @@ class _ProgressContent extends StatelessWidget {
                     Text(
                       progress.lastSession == null
                           ? 'Tu primera habitación te está esperando.'
-                          : 'Guardaste $lastCollected ${lastCollected == 1 ? 'juguete' : 'juguetes'}.',
+                          : 'Guardaste $lastCollected ${lastCollected == 1 ? 'cosa' : 'cosas'}.',
                       style: AppTypography.body,
                     ),
                   ],

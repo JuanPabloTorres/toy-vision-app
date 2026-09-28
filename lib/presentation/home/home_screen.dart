@@ -185,7 +185,7 @@ class _MissionHeader extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     hasPlayed && lastCollected != null
-                        ? 'La última vez guardaste $lastCollected ${lastCollected == 1 ? 'juguete' : 'juguetes'}. ¿Repetimos?'
+                        ? 'La última vez guardaste $lastCollected ${lastCollected == 1 ? 'cosa' : 'cosas'}. ¿Repetimos?'
                         : 'Sigue el camino con Tobi y pon cada juguete en su lugar.',
                     style: AppTypography.body.copyWith(
                       color: Colors.white.withValues(alpha: 0.92),
@@ -289,7 +289,7 @@ class _AdventurePathState extends State<_AdventurePath>
                     top: 350,
                     child: const _RouteStop(
                       number: '2',
-                      title: 'Encuentra los juguetes',
+                      title: 'Encuentra lo que hay que recoger',
                       subtitle: 'Mira con calma',
                       assetPath: AppAssets.searchIcon,
                       icon: Icons.search_rounded,

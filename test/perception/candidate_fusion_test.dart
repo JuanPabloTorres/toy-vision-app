@@ -49,11 +49,31 @@ void main() {
     }
 
     final toyWord = run('toy car');
-    final unrelatedWord = run('toilet');
-    expect(toyWord.accepted.length, unrelatedWord.accepted.length);
+    final cleanupWord = run('shirt on floor');
+    expect(toyWord.accepted.length, cleanupWord.accepted.length);
     expect(
       toyWord.accepted.single.toyProbability,
-      closeTo(unrelatedWord.accepted.single.toyProbability, 1e-9),
+      closeTo(cleanupWord.accepted.single.toyProbability, 1e-9),
+    );
+  });
+
+  test('three small stable items survive normal detector box jitter', () {
+    final fusion = ToyCandidateFusion();
+    final start = DateTime.utc(2026);
+    late CandidateFusionResult result;
+    for (var frame = 0; frame < 3; frame++) {
+      result = fusion.evaluate(
+        _multiItemAnalysis(frame),
+        frameId: frame,
+        timestamp: start.add(Duration(milliseconds: frame * 200)),
+        sceneContextScore: 1,
+      );
+    }
+
+    expect(result.accepted, hasLength(3));
+    expect(
+      result.accepted.map((item) => item.spatialStability),
+      everyElement(greaterThanOrEqualTo(0.8)),
     );
   });
 
@@ -115,6 +135,31 @@ void main() {
     }
 
     expect(result.accepted, isEmpty);
+    expect(
+      result.uncertain.single.confirmationBlockers,
+      contains('semantic_confidence_insufficient'),
+    );
+  });
+
+  test('low-confidence proposal remains unconfirmed despite strong objectness',
+      () {
+    final fusion = ToyCandidateFusion();
+    final start = DateTime.utc(2026);
+    late CandidateFusionResult result;
+    for (var frame = 0; frame < 3; frame++) {
+      result = fusion.evaluate(
+        _analysis(
+          detectorConfidence: 0.14,
+          proposalConfidence: 0.92,
+        ),
+        frameId: frame,
+        timestamp: start.add(Duration(milliseconds: frame * 200)),
+        sceneContextScore: 1,
+      );
+    }
+
+    expect(result.accepted, isEmpty);
+    expect(result.uncertain, hasLength(1));
     expect(
       result.uncertain.single.confirmationBlockers,
       contains('semantic_confidence_insufficient'),
@@ -185,3 +230,38 @@ FrameAnalysis _analysis({
       sourceHeight: 240,
       decodeAndEmbeddingUs: 100,
     );
+
+FrameAnalysis _multiItemAnalysis(int frame) {
+  final jitter = frame.isEven ? 0.0 : 0.018;
+  return FrameAnalysis(
+    embeddingExtractorIdentifier: 'test-embedding',
+    candidates: [
+      for (var index = 0; index < 3; index++)
+        VisualCandidate(
+          bounds: NormalizedBox(
+            x: 0.08 + index * 0.30 + jitter,
+            y: 0.62,
+            width: 0.10,
+            height: 0.10,
+          ),
+          detectorConfidence: 0.62,
+          proposalConfidence: 0.35,
+          embedding: [
+            index == 0 ? 1 : 0,
+            index == 1 ? 1 : 0,
+            index == 2 ? 1 : 0,
+          ],
+          source: ObservationSource.detector,
+          knownClass: index == 0 ? 'toy' : 'cleanup item',
+        ),
+    ],
+    sceneEmbedding: const [1, 0],
+    trackedRegionEmbeddings: const {},
+    sharpness: 0.2,
+    luminance: 0.5,
+    coverage: 1,
+    sourceWidth: 320,
+    sourceHeight: 240,
+    decodeAndEmbeddingUs: 100,
+  );
+}

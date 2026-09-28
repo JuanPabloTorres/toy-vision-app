@@ -1,9 +1,10 @@
 # Toy Vision
 
-Versión actual: `2.3.0+6`. El flujo de ramas y versionado obligatorio está
+Versión actual: `2.4.0+7`. El flujo de ramas y versionado obligatorio está
 documentado en [`docs/development_workflow.md`](docs/development_workflow.md).
 
-Aplicación Flutter local-first que ayuda a un niño a recoger juguetes mediante
+Aplicación Flutter local-first que ayuda a un niño a recoger juguetes, ropa y
+objetos sueltos mediante
 percepción híbrida on-device. El flujo infantil es deliberadamente corto:
 `Home → Scan/Cleanup → Celebration`; Settings queda separado para adultos.
 
@@ -48,7 +49,8 @@ de implementación y los límites verificados están en
 
 ## Operación local
 
-El detector requerido está incluido en `assets/models/toys.tflite`; no existe
+El detector requerido está incluido en `assets/models/cleanup_items.tflite`;
+no existe
 descarga ni fallback remoto. Android solicita `CAMERA` para la función visible
 y declara `INTERNET` únicamente porque el visor 3D sirve el glTF incluido sobre
 loopback (`127.0.0.1`); no solicita audio ni almacenamiento. Los frames,

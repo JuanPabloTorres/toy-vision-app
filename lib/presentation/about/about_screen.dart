@@ -26,7 +26,7 @@ class AboutScreen extends StatelessWidget {
               icon: Icons.route_rounded,
               title: 'Cómo funciona',
               body:
-                  'Escanea el cuarto, recoge los juguetes que Tobi encontró y celebra cuando el espacio queda limpio.',
+                  'Escanea el cuarto, recoge los juguetes, la ropa y los objetos sueltos que Tobi encontró, y celebra cuando el espacio queda limpio.',
             ),
             const ToyFeatureCard(
               icon: Icons.privacy_tip_rounded,

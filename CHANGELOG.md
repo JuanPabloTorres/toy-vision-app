@@ -3,6 +3,22 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.4.0] - 2026-09-27
+
+### Added
+
+- Vocabulario on-device ampliado de 20 a 30 clases para conservar todos los
+  juguetes y proponer también ropa y objetos domésticos sueltos.
+- Regresión multiobjeto para tres elementos pequeños simultáneos con jitter
+  normal de cajas del detector.
+
+### Changed
+
+- El umbral nativo de propuestas baja de 0.25 a 0.12; la confirmación sigue
+  requiriendo persistencia, estabilidad espacial y fusión independiente.
+- La estabilidad temporal adapta la tolerancia de desplazamiento al tamaño de
+  la caja para evitar perder objetos pequeños por variación de pocos píxeles.
+
 ## [2.3.0] - 2026-09-27
 
 ### Added
