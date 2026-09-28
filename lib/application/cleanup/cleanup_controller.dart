@@ -16,6 +16,7 @@ import '../observability/session_evidence.dart';
 import '../progress/complete_cleanup_session_use_case.dart';
 import 'cleanup_session_service.dart';
 import 'cleanup_state.dart';
+import 'room_clean_verifier.dart';
 import 'target_selector.dart';
 
 class CleanupController extends Notifier<CleanupState> {
@@ -256,6 +257,7 @@ class CleanupController extends Notifier<CleanupState> {
         result,
         target: target,
         session: session,
+        completionEvidence: outcome.completionEvidence,
       ),
       visionStatus: phase == CleanupPhase.completed
           ? VisionStatus.stopped
@@ -292,12 +294,14 @@ class CleanupController extends Notifier<CleanupState> {
     PerceptionResult perception, {
     required int? target,
     required CleanupSession? session,
+    CompletionEvidence? completionEvidence,
   }) {
     if (phase == CleanupPhase.ready) return '¡Vamos a recoger!';
     if (phase == CleanupPhase.discovering) return 'Buscando juguetes…';
     if (phase == CleanupPhase.completed) return '¡Lo lograste!';
     if (phase == CleanupPhase.verifyingRoom) {
-      return 'Déjame mirar una vez más…';
+      return completionEvidence?.guidance ??
+          '¡Casi! Miremos alrededor una vez más.';
     }
     if (phase == CleanupPhase.verifyingRemoval) {
       return perception.worldModel.scene.canVerifyDisappearance

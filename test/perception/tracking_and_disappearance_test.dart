@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:toyvision_realtime/domain/scene/scene_descriptor.dart';
 import 'package:toyvision_realtime/domain/scene/scene_state.dart';
+import 'package:toyvision_realtime/domain/scene/spatial_observation.dart';
 import 'package:toyvision_realtime/domain/toy/normalized_box.dart';
 import 'package:toyvision_realtime/domain/toy/toy_observation.dart';
 import 'package:toyvision_realtime/domain/toy/toy_track.dart';
 import 'package:toyvision_realtime/perception/disappearance/disappearance_verifier.dart';
+import 'package:toyvision_realtime/perception/fusion/sensor_fusion_engine.dart';
 import 'package:toyvision_realtime/perception/tracking/reidentification_candidate_policy.dart';
 import 'package:toyvision_realtime/perception/tracking/toy_tracker.dart';
 
@@ -510,6 +512,106 @@ void main() {
 
     expect(evidence.confirmed, isTrue);
   });
+
+  test('IMU motion keeps a missing toy temporarily lost', () {
+    final now = DateTime.utc(2026);
+    final scene = _scene(
+      now,
+      SceneState.stable,
+      similarity: 0.99,
+      spatial: SpatialObservation(
+        timestamp: now,
+        motionAvailable: true,
+        orientationAvailable: true,
+        gyroscopeRadPerSecond: 2.4,
+        linearAccelerationMetersPerSecond2: 3.2,
+        yawDegrees: 70,
+        pitchDegrees: 0,
+      ),
+    );
+    final track = _missingTrackAt(
+      now,
+      missingSince: now.subtract(const Duration(seconds: 2)),
+      missingFrames: 10,
+    ).copyWith(
+      lastInteractionAt: now.subtract(const Duration(milliseconds: 2100)),
+    );
+    final fusion = const SensorFusionEngine().evaluateRemoval(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      spatial: scene.spatial,
+    );
+
+    final evaluation = const DisappearanceVerifier(
+      minimumMissingFrames: 3,
+      minimumMissingDuration: Duration(milliseconds: 600),
+      confirmationThreshold: 0.6,
+    ).evaluate(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      occluded: false,
+      reidentificationCandidate: false,
+      timestamp: now,
+      fusionEvidence: fusion,
+    );
+
+    expect(evaluation.decision, RemovalDecision.temporarilyLost);
+    expect(
+      evaluation.evidence.rejectionReasons,
+      contains('device_motion_too_high'),
+    );
+  });
+
+  test('stable IMU plus revealed background corroborates pickup', () {
+    final now = DateTime.utc(2026);
+    final scene = _scene(
+      now,
+      SceneState.stable,
+      similarity: 0.99,
+      spatial: SpatialObservation(
+        timestamp: now,
+        motionAvailable: true,
+        orientationAvailable: true,
+        gyroscopeRadPerSecond: 0.03,
+        linearAccelerationMetersPerSecond2: 0.05,
+        yawDegrees: 0,
+        pitchDegrees: 0,
+      ),
+    );
+    final track = _missingTrackAt(
+      now,
+      missingSince: now.subtract(const Duration(seconds: 2)),
+      missingFrames: 10,
+    ).copyWith(
+      lastInteractionAt: now.subtract(const Duration(milliseconds: 2100)),
+    );
+    final fusion = const SensorFusionEngine().evaluateRemoval(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      spatial: scene.spatial,
+    );
+
+    final evaluation = const DisappearanceVerifier(
+      minimumMissingFrames: 3,
+      minimumMissingDuration: Duration(milliseconds: 600),
+      confirmationThreshold: 0.6,
+    ).evaluate(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      occluded: false,
+      reidentificationCandidate: false,
+      timestamp: now,
+      fusionEvidence: fusion,
+    );
+
+    expect(evaluation.decision, RemovalDecision.removalConfirmed);
+    expect(evaluation.evidence.backgroundRevealScore, greaterThan(0.9));
+    expect(evaluation.evidence.cameraTrackingGood, isTrue);
+  });
 }
 
 ToyObservation _observation(DateTime at, List<double> embedding, double x) =>
@@ -619,6 +721,7 @@ SceneDescriptor _scene(
   DateTime now,
   SceneState state, {
   required double similarity,
+  SpatialObservation spatial = const SpatialObservation.unavailable(),
 }) =>
     SceneDescriptor(
       embedding: const [1, 0],
@@ -631,4 +734,5 @@ SceneDescriptor _scene(
       timestamp: now,
       stableFrameCount: state == SceneState.stable ? 10 : 0,
       similarityToStableAnchor: similarity,
+      spatial: spatial,
     );

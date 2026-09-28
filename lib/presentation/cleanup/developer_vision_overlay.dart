@@ -4,25 +4,49 @@ import 'package:flutter/material.dart';
 
 import '../../domain/toy/toy_observation.dart';
 import '../../perception/perception_models.dart';
+import '../../application/cleanup/cleanup_state.dart';
+import '../../application/cleanup/room_clean_verifier.dart';
 import 'camera_preview_geometry.dart';
 
 class DeveloperVisionOverlay extends StatelessWidget {
-  const DeveloperVisionOverlay({super.key, required this.result});
+  const DeveloperVisionOverlay({
+    super.key,
+    required this.result,
+    required this.phase,
+    this.activeToyId,
+    this.completionEvidence,
+  });
 
   final PerceptionResult result;
+  final CleanupPhase phase;
+  final int? activeToyId;
+  final CompletionEvidence? completionEvidence;
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
         child: CustomPaint(
-          painter: _DeveloperVisionPainter(result),
+          painter: _DeveloperVisionPainter(
+            result,
+            phase,
+            activeToyId,
+            completionEvidence,
+          ),
         ),
       );
 }
 
 class _DeveloperVisionPainter extends CustomPainter {
-  const _DeveloperVisionPainter(this.result);
+  const _DeveloperVisionPainter(
+    this.result,
+    this.phase,
+    this.activeToyId,
+    this.completionEvidence,
+  );
 
   final PerceptionResult result;
+  final CleanupPhase phase;
+  final int? activeToyId;
+  final CompletionEvidence? completionEvidence;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -71,20 +95,29 @@ class _DeveloperVisionPainter extends CustomPainter {
         canvas,
         transform.map(track.lastBounds),
         const Color(0xFF7C4DFF),
-        'MISS #${track.id} ${evidence.confidence.toStringAsFixed(2)} '
+        'MISS #${track.id} ${evidence.missingDuration.inMilliseconds}ms '
+        'gyro:${evidence.deviceMotion.toStringAsFixed(2)} '
+        'bg:${evidence.backgroundRevealScore.toStringAsFixed(2)} '
+        'depth:${evidence.depthChangeScore?.toStringAsFixed(2) ?? '-'} '
         '${evidence.rejectionReasons.join('|')}',
       );
     }
 
     final scene = result.worldModel.scene;
-    final summary = 'DEV  frame ${result.metrics.frameId}  '
+    final completion = completionEvidence;
+    final summary = 'DEV  frame ${result.metrics.frameId} '
+        'phase:${phase.name} activeToy:${activeToyId ?? '-'}\n'
         'scene:${scene.state.name} '
         'prev:${scene.similarityToPrevious.toStringAsFixed(2)} '
         'anchor:${scene.similarityToStableAnchor.toStringAsFixed(2)} '
         'stable:${scene.stableFrameCount}  '
         'YOLO:${result.metrics.detectorProposalCount} '
         'OPEN:${result.metrics.openSetProposalCount} '
-        'TOY:${result.acceptedObservations.length}';
+        'TOY:${result.acceptedObservations.length} '
+        'gyroMotion:${scene.spatial.normalizedMotion.toStringAsFixed(2)}\n'
+        'roomCoverage:${completion?.sceneCoverage.toStringAsFixed(2) ?? '-'} '
+        'confirmedToys:${completion?.confirmedToyCount ?? '-'} '
+        'cleanDecision:${completion?.cleanDecision.name ?? '-'}';
     final text = TextPainter(
       text: TextSpan(
         text: summary,
@@ -96,7 +129,7 @@ class _DeveloperVisionPainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-      maxLines: 3,
+      maxLines: 5,
     )..layout(maxWidth: size.width - 16);
     text.paint(canvas, const Offset(8, 116));
   }
@@ -134,5 +167,9 @@ class _DeveloperVisionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DeveloperVisionPainter oldDelegate) =>
-      oldDelegate.result.metrics.frameId != result.metrics.frameId;
+      oldDelegate.result.metrics.frameId != result.metrics.frameId ||
+      oldDelegate.phase != phase ||
+      oldDelegate.activeToyId != activeToyId ||
+      oldDelegate.completionEvidence?.cleanDecision !=
+          completionEvidence?.cleanDecision;
 }

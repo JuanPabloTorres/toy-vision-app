@@ -11,6 +11,8 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val deviceHealthChannel = "toyvision/device_health"
+    private val deviceMotionChannel = "toyvision/device_motion"
+    private lateinit var deviceMotion: DeviceMotionSensorBridge
 
     // Kid Mode must always restart at its Welcome screen after Android kills
     // the activity. Restoring the previous Flutter engine bundle can reopen
@@ -19,6 +21,24 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        deviceMotion = DeviceMotionSensorBridge(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            deviceMotionChannel,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    deviceMotion.start()
+                    result.success(null)
+                }
+                "stop" -> {
+                    deviceMotion.stop()
+                    result.success(null)
+                }
+                "read" -> result.success(deviceMotion.snapshot())
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             deviceHealthChannel,
@@ -55,5 +75,10 @@ class MainActivity : FlutterActivity() {
                 ),
             )
         }
+    }
+
+    override fun onDestroy() {
+        if (::deviceMotion.isInitialized) deviceMotion.stop()
+        super.onDestroy()
     }
 }

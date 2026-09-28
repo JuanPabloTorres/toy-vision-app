@@ -70,7 +70,7 @@ void main() {
     expect(find.text('Preparando la visión…'), findsOneWidget);
     expect(find.text('Encontrar'), findsOneWidget);
     expect(find.text('Recoger'), findsOneWidget);
-    expect(find.text('Revisar'), findsOneWidget);
+    expect(find.text('Confirmar'), findsOneWidget);
     expect(
       container.read(cleanupControllerProvider).phase,
       CleanupPhase.discovering,

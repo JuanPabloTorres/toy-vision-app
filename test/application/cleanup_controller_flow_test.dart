@@ -56,11 +56,14 @@ void main() {
         missing: {1: missingFirst, 2: missingSecond},
         disappearance: {2: _confirmedRemoval(missingSecond)},
       ),
-      for (var index = 1; index <= 5; index++)
+      for (var index = 1; index <= 6; index++)
         _result(
           origin.add(Duration(seconds: 7 + index)),
           const [1, 0],
           missing: {1: missingFirst, 2: missingSecond},
+          uncertain: index == 1
+              ? [_uncertainOpenSet(origin.add(const Duration(seconds: 8)))]
+              : const [],
         ),
     ];
     final engine = _SequencePerceptionEngine(results);
@@ -115,7 +118,16 @@ void main() {
     expect(state.remainingEstimate, 0);
     expect(state.completionEvidence, isNotNull);
 
-    for (var index = 4; index < results.length; index++) {
+    await controller.ingest(_frame(4, origin.add(const Duration(seconds: 8))));
+    state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.verifyingRoom);
+    expect(state.completionEvidence?.candidateToyCount, 1);
+    expect(
+      state.completionEvidence?.blockingReasons,
+      contains('ambiguous_toy_candidates'),
+    );
+
+    for (var index = 5; index < results.length; index++) {
       await controller.ingest(
         _frame(index, origin.add(Duration(seconds: index + 4))),
       );
@@ -254,6 +266,7 @@ PerceptionResult _result(
   Map<int, ToyTrack> active = const {},
   Map<int, ToyTrack> missing = const {},
   Map<int, DisappearanceEvidence> disappearance = const {},
+  List<ToyObservation> uncertain = const [],
 }) {
   final analysis = FrameAnalysis(
     embeddingExtractorIdentifier: 'test',
@@ -288,7 +301,7 @@ PerceptionResult _result(
       updatedAt: at,
     ),
     acceptedObservations: const [],
-    uncertainObservations: const [],
+    uncertainObservations: uncertain,
     transitions: const [],
     disappearanceEvidence: disappearance,
     metrics: const PerceptionMetrics(
@@ -315,3 +328,19 @@ PerceptionResult _result(
     ),
   );
 }
+
+ToyObservation _uncertainOpenSet(DateTime at) => ToyObservation(
+      bounds: const NormalizedBox(x: 0.4, y: 0.4, width: 0.15, height: 0.15),
+      detectionConfidence: 0,
+      proposalConfidence: 0.72,
+      embeddingSimilarity: 0.6,
+      temporalPersistence: 2,
+      spatialStability: 0.8,
+      sceneContextScore: 1,
+      toyProbability: 0.62,
+      stage: ToyEvidenceStage.candidate,
+      embedding: const [0.5, 0.5],
+      frameId: 4,
+      timestamp: at,
+      source: ObservationSource.openSetProposal,
+    );

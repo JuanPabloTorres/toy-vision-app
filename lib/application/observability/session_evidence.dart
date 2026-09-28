@@ -58,6 +58,18 @@ Map<String, Object?> sessionEvidenceToJson(
       'nativeFps': evidence.frame.nativeFps,
       'detectorCoordinatesAreUpright':
           evidence.frame.detectorCoordinatesAreUpright,
+      'spatial': {
+        'motionAvailable': evidence.frame.spatial.motionAvailable,
+        'orientationAvailable': evidence.frame.spatial.orientationAvailable,
+        'poseAvailable': evidence.frame.spatial.poseAvailable,
+        'depthAvailable': evidence.frame.spatial.depthAvailable,
+        'gyroMotion': evidence.frame.spatial.gyroscopeRadPerSecond,
+        'linearAcceleration':
+            evidence.frame.spatial.linearAccelerationMetersPerSecond2,
+        'yawDegrees': evidence.frame.spatial.yawDegrees,
+        'pitchDegrees': evidence.frame.spatial.pitchDegrees,
+        'rollDegrees': evidence.frame.spatial.rollDegrees,
+      },
       'detections': evidence.frame.detectorProposals
           .map(
             (proposal) => {
@@ -150,6 +162,11 @@ Map<String, Object?> sessionEvidenceToJson(
             'stableSceneWindow': item.stableSceneWindow,
             'interactionObserved': item.interactionObserved,
             'reidentificationCandidate': item.reidentificationCandidate,
+            'deviceMotion': item.deviceMotion,
+            'backgroundRevealScore': item.backgroundRevealScore,
+            'depthChangeScore': item.depthChangeScore,
+            'cameraTrackingGood': item.cameraTrackingGood,
+            'corroboratingSignalCount': item.corroboratingSignalCount,
             'rejectionReasons': item.rejectionReasons,
             'confidence': item.confidence,
             'confirmed': item.confirmed,
@@ -178,6 +195,18 @@ Map<String, Object?> sessionEvidenceToJson(
               'uncertainTracks': evidence.completionEvidence!.uncertainTracks,
               'sceneCoverage': evidence.completionEvidence!.sceneCoverage,
               'blockingReasons': evidence.completionEvidence!.blockingReasons,
+              'cleanDecision': evidence.completionEvidence!.cleanDecision.name,
+              'guidance': evidence.completionEvidence!.guidance,
+              'coverageSectors': evidence.completionEvidence!.coverageSectors,
+              'confirmedToyCount':
+                  evidence.completionEvidence!.confirmedToyCount,
+              'candidateToyCount':
+                  evidence.completionEvidence!.candidateToyCount,
+              'noToyDurationMs':
+                  evidence.completionEvidence!.noToyDuration.inMilliseconds,
+              'cameraTrackingGood':
+                  evidence.completionEvidence!.cameraTrackingGood,
+              'depthConsistency': evidence.completionEvidence!.depthConsistency,
             },
     },
     'latency': {

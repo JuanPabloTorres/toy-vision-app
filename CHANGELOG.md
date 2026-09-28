@@ -3,6 +3,33 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.2.0] - 2026-09-27
+
+### Added
+
+- Fusión de movimiento físico con giroscopio, aceleración lineal y rotation
+  vector nativos de Android, sin permisos sensibles adicionales.
+- `SensorFusionEngine` para combinar movimiento, continuidad visual,
+  background reveal y hooks opcionales de pose/profundidad.
+- `RoomCoverageTracker` con sectores izquierda, centro, derecha y piso, más
+  fallback por viewpoints visuales cuando la orientación no está disponible.
+- Instrumentación de desarrollador para juguete activo, ausencia, movimiento,
+  background reveal, depth, cobertura y decisión de limpieza.
+
+### Changed
+
+- La verificación final devuelve `toyFound`, `needMoreCoverage` o `roomClean` y
+  siempre explica al niño qué zona mirar o qué evidencia falta.
+- La ruta infantil sustituye el paso bloqueante “Revisar” por “Confirmar” y
+  conserva YOLO/percepción activos durante toda la comprobación.
+
+### Safety
+
+- El movimiento brusco del dispositivo mantiene el juguete como
+  `temporarilyLost`; nunca confirma una recogida.
+- ARCore/Depth no se simulan sobre CameraX: quedan detrás de contratos
+  opcionales hasta migrar el dueño de cámara a ARCore Shared Camera/Camera2.
+
 ## [2.1.0] - 2026-09-27
 
 ### Added

@@ -20,7 +20,7 @@ pubspec.lock
 Thumbs.db
 
 # Coverage / test
-coverage/
+/coverage/
 
 # Real-device certification data may contain private camera pixels/metadata.
 certification/runs/

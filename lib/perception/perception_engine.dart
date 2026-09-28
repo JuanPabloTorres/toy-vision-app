@@ -8,6 +8,7 @@ import '../domain/toy/toy_track.dart';
 import 'detector/object_detector.dart';
 import 'disappearance/disappearance_verifier.dart';
 import 'fusion/toy_candidate_fusion.dart';
+import 'fusion/sensor_fusion_engine.dart';
 import 'perception_models.dart';
 import 'scene/scene_stability_service.dart';
 import 'scene/scene_anchor_update_policy.dart';
@@ -40,6 +41,7 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
     ReidentificationCandidatePolicy? reidentificationPolicy,
     SceneAnchorUpdatePolicy? sceneAnchorUpdatePolicy,
     AdaptiveInferenceScheduler? scheduler,
+    SensorFusionEngine? sensorFusion,
   })  : _detector = detector ?? const NativeProposalObjectDetector(),
         _analyzer = analyzer ?? const VisualFrameAnalyzer(),
         _fusion = fusion ?? ToyCandidateFusion(),
@@ -51,7 +53,8 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
             reidentificationPolicy ?? const ReidentificationCandidatePolicy(),
         _sceneAnchorUpdatePolicy =
             sceneAnchorUpdatePolicy ?? const SceneAnchorUpdatePolicy(),
-        _scheduler = scheduler ?? const AdaptiveInferenceScheduler();
+        _scheduler = scheduler ?? const AdaptiveInferenceScheduler(),
+        _sensorFusion = sensorFusion ?? const SensorFusionEngine();
 
   final ObjectDetector _detector;
   final VisualFrameAnalyzer _analyzer;
@@ -63,6 +66,7 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
   final ReidentificationCandidatePolicy _reidentificationPolicy;
   final SceneAnchorUpdatePolicy _sceneAnchorUpdatePolicy;
   final AdaptiveInferenceScheduler _scheduler;
+  final SensorFusionEngine _sensorFusion;
 
   DeviceHealth _deviceHealth = const DeviceHealth();
   InferencePolicy _lastPolicy = const InferencePolicy(
@@ -86,6 +90,7 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
       nativeInferenceMs: frame.nativeInferenceMs,
       nativeFps: frame.nativeFps,
       detectorCoordinatesAreUpright: frame.detectorCoordinatesAreUpright,
+      spatial: frame.spatial,
     );
     final regions = <int, NormalizedBox>{
       for (final track in _tracker.tracks)
@@ -118,6 +123,7 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
         discoveryMode: discoveryMode,
         tracks: _tracker.tracks,
       ),
+      spatial: frame.spatial,
     );
 
     final fusionStopwatch = Stopwatch()..start();
@@ -156,6 +162,12 @@ class HybridToyPerceptionEngine implements PerceptionEngine {
           observations: [...fused.accepted, ...fused.uncertain],
         ),
         timestamp: frame.timestamp,
+        fusionEvidence: _sensorFusion.evaluateRemoval(
+          track: track,
+          scene: scene,
+          currentRegionEmbedding: analysis.trackedRegionEmbeddings[track.id],
+          spatial: frame.spatial,
+        ),
       );
       disappearance[track.id] = evaluation.evidence;
       if (evaluation.decision == RemovalDecision.removalConfirmed) {
