@@ -80,7 +80,9 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      unawaited(_deviceMotion.start());
+      if (ref.read(cleanupControllerProvider).phase != CleanupPhase.completed) {
+        unawaited(_deviceMotion.start());
+      }
       ref.read(cleanupControllerProvider.notifier).resume();
       setState(() {
         _cameraEpoch += 1;
@@ -112,6 +114,13 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
         cleanup.phase == CleanupPhase.verifyingRoom ||
         cleanup.phase == CleanupPhase.paused;
     ref.listen<CleanupState>(cleanupControllerProvider, (previous, next) {
+      if (previous?.phase != next.phase) {
+        if (next.phase == CleanupPhase.completed) {
+          unawaited(_deviceMotion.stop());
+        } else if (previous?.phase == CleanupPhase.completed) {
+          unawaited(_deviceMotion.start());
+        }
+      }
       final target = next.metrics?.targetInferenceFps;
       if (target != null && target != _targetFps) {
         _targetFps = target;

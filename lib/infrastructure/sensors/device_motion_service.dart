@@ -26,11 +26,14 @@ class AndroidDeviceMotionService implements DeviceMotionService {
     try {
       final value = await _channel.invokeMapMethod<String, dynamic>('read');
       if (value == null) return const SpatialObservation.unavailable();
+      final timestampMs = (value['timestampMs'] as num?)?.toInt() ?? 0;
+      final now = DateTime.now();
+      final sampleAgeMs = now.millisecondsSinceEpoch - timestampMs;
+      if (timestampMs <= 0 || sampleAgeMs < -100 || sampleAgeMs > 500) {
+        return const SpatialObservation.unavailable();
+      }
       return SpatialObservation(
-        timestamp: DateTime.fromMillisecondsSinceEpoch(
-          (value['timestampMs'] as num?)?.toInt() ??
-              DateTime.now().millisecondsSinceEpoch,
-        ),
+        timestamp: DateTime.fromMillisecondsSinceEpoch(timestampMs),
         motionAvailable: value['motionAvailable'] as bool? ?? false,
         orientationAvailable: value['orientationAvailable'] as bool? ?? false,
         gyroscopeRadPerSecond:

@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.SystemClock
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -21,6 +22,8 @@ class DeviceMotionSensorBridge(context: Context) : SensorEventListener {
     @Volatile private var timestampMs = 0L
     @Volatile private var gyroscopeMagnitude = 0.0
     @Volatile private var accelerationMagnitude = 0.0
+    @Volatile private var gyroscopePeakAtMs = 0L
+    @Volatile private var accelerationPeakAtMs = 0L
     @Volatile private var yawDegrees: Double? = null
     @Volatile private var pitchDegrees: Double? = null
     @Volatile private var rollDegrees: Double? = null
@@ -53,28 +56,31 @@ class DeviceMotionSensorBridge(context: Context) : SensorEventListener {
             "pitchDegrees" to pitchDegrees,
             "rollDegrees" to rollDegrees,
         )
-        // Preserve the strongest motion between camera frames, then start the
-        // next frame window. A short pickup/rotation pulse must not be lost
-        // because the most recent raw sample happened to be quiet.
-        gyroscopeMagnitude = 0.0
-        accelerationMagnitude = 0.0
         return value
     }
 
     @Synchronized
     override fun onSensorChanged(event: SensorEvent) {
         timestampMs = System.currentTimeMillis()
+        val monotonicNowMs = SystemClock.elapsedRealtime()
         when (event.sensor.type) {
             Sensor.TYPE_GYROSCOPE -> {
-                gyroscopeMagnitude = maxOf(gyroscopeMagnitude, magnitude(event.values))
+                val current = magnitude(event.values)
+                if (
+                    current >= gyroscopeMagnitude ||
+                    monotonicNowMs - gyroscopePeakAtMs > PEAK_RETENTION_MS
+                ) {
+                    gyroscopeMagnitude = current
+                    gyroscopePeakAtMs = monotonicNowMs
+                }
             }
             Sensor.TYPE_LINEAR_ACCELERATION -> {
-                accelerationMagnitude = maxOf(accelerationMagnitude, magnitude(event.values))
+                updateAccelerationPeak(magnitude(event.values), monotonicNowMs)
             }
             Sensor.TYPE_ACCELEROMETER -> {
-                accelerationMagnitude = maxOf(
-                    accelerationMagnitude,
+                updateAccelerationPeak(
                     abs(magnitude(event.values) - SensorManager.GRAVITY_EARTH),
+                    monotonicNowMs,
                 )
             }
             Sensor.TYPE_GAME_ROTATION_VECTOR,
@@ -93,6 +99,16 @@ class DeviceMotionSensorBridge(context: Context) : SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
+    private fun updateAccelerationPeak(current: Double, monotonicNowMs: Long) {
+        if (
+            current >= accelerationMagnitude ||
+            monotonicNowMs - accelerationPeakAtMs > PEAK_RETENTION_MS
+        ) {
+            accelerationMagnitude = current
+            accelerationPeakAtMs = monotonicNowMs
+        }
+    }
+
     private fun magnitude(values: FloatArray): Double {
         if (values.size < 3) return 0.0
         return sqrt(
@@ -100,5 +116,11 @@ class DeviceMotionSensorBridge(context: Context) : SensorEventListener {
                 values[1] * values[1] +
                 values[2] * values[2],
         ).toDouble()
+    }
+
+    private companion object {
+        // Keep a short physical-motion pulse visible across dropped or
+        // superseded camera frames. New quiet samples replace it afterwards.
+        const val PEAK_RETENTION_MS = 750L
     }
 }

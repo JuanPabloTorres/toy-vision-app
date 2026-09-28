@@ -2,7 +2,6 @@ import '../../domain/cleanup/cleanup_event.dart';
 import '../../domain/cleanup/cleanup_session.dart';
 import '../../domain/cleanup/collected_object_memory.dart';
 import '../../domain/scene/room_snapshot.dart';
-import '../../domain/toy/toy_observation.dart';
 import '../../perception/perception_models.dart';
 import '../../perception/room_discovery/room_discovery_session.dart';
 import 'room_clean_verifier.dart';
@@ -144,11 +143,7 @@ class CleanupSessionService {
       world: perception.worldModel,
       session: session,
       uncertainTracks: perception.uncertainObservations
-          .where(
-            (candidate) =>
-                candidate.source == ObservationSource.detector &&
-                candidate.temporalPersistence >= 1,
-          )
+          .where((candidate) => candidate.temporalPersistence >= 1)
           .length,
     );
     final completion = roomClean.evidence;
