@@ -1,0 +1,140 @@
+schema_version: 1
+policy:
+  external_assets_require_review: true
+  required_fields:
+    - asset_id
+    - source
+    - author
+    - license
+    - commercial_use
+    - attribution_required
+    - original_url
+    - local_path
+
+generated_defaults: &openai_generated
+  source: OpenAI built-in image generation
+  author: Toy Vision project / OpenAI-generated output
+  license: OpenAI Terms of Use (output ownership subject to applicable law)
+  commercial_use: permitted subject to OpenAI Terms of Use
+  attribution_required: false
+  original_url: null
+  terms_url: https://openai.com/policies/row-terms-of-use/
+
+assets:
+  # BRAND
+  - <<: *openai_generated
+    asset_id: tobi-ordena-app-icon-v1
+    local_path: assets/icons/toy_vision_app_icon.png
+  - <<: *openai_generated
+    asset_id: tobi-ordena-adaptive-foreground-v1
+    local_path: assets/icons/tobi_ordena_app_icon_foreground.png
+
+  # GAME
+  - <<: *openai_generated
+    asset_id: toyvision-car-3d-v1
+    local_path: assets/icons/toy_car_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-bear-3d-v1
+    local_path: assets/icons/toy_bear_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-ball-3d-v1
+    local_path: assets/icons/toy_ball_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-blocks-3d-v1
+    local_path: assets/icons/toy_blocks_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-dinosaur-3d-v1
+    local_path: assets/icons/toy_dinosaur_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-train-3d-v1
+    local_path: assets/icons/toy_train_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-puzzle-3d-v1
+    local_path: assets/icons/toy_puzzle_3d.png
+
+  # SYSTEM
+  - <<: *openai_generated
+    asset_id: toyvision-camera-3d-v1
+    local_path: assets/icons/toy_camera_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-sound-3d-v1
+    local_path: assets/icons/toy_sound_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-music-3d-v1
+    local_path: assets/icons/toy_music_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-settings-3d-v1
+    local_path: assets/icons/toy_settings_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-home-3d-v1
+    local_path: assets/icons/toy_home_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-replay-3d-v1
+    local_path: assets/icons/toy_replay_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-back-3d-v1
+    local_path: assets/icons/toy_back_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-info-3d-v1
+    local_path: assets/icons/toy_info_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-voice-3d-v1
+    local_path: assets/icons/toy_voice_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-animation-3d-v1
+    local_path: assets/icons/toy_animation_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-child-mode-3d-v1
+    local_path: assets/icons/toy_child_mode_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-privacy-3d-v1
+    local_path: assets/icons/toy_privacy_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-model-3d-v1
+    local_path: assets/icons/toy_model_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-license-3d-v1
+    local_path: assets/icons/toy_license_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-support-3d-v1
+    local_path: assets/icons/toy_support_3d.png
+
+  # PROGRESS
+  - <<: *openai_generated
+    asset_id: toyvision-progress-3d-v1
+    local_path: assets/icons/toy_progress_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-star-3d-v1
+    local_path: assets/icons/toy_star_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-trophy-3d-v1
+    local_path: assets/icons/toy_trophy_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-streak-3d-v1
+    local_path: assets/icons/toy_streak_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-completed-3d-v1
+    local_path: assets/icons/toy_completed_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-reward-3d-v1
+    local_path: assets/icons/toy_reward_3d.png
+
+  # VISION
+  - <<: *openai_generated
+    asset_id: toyvision-scan-3d-v1
+    local_path: assets/icons/toy_scan_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-search-3d-v1
+    local_path: assets/icons/toy_search_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-confirmed-3d-v1
+    local_path: assets/icons/toy_confirmed_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-target-3d-v1
+    local_path: assets/icons/toy_target_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-collected-3d-v1
+    local_path: assets/icons/toy_collected_3d.png
+  - <<: *openai_generated
+    asset_id: toyvision-empty-room-3d-v1
+    local_path: assets/icons/toy_empty_room_3d.png

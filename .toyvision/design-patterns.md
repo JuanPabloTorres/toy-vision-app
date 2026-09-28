@@ -1,81 +1,31 @@
-# Design Patterns — ToyVision Real-Time
+# Design Patterns
 
-Use these patterns where appropriate. They exist to keep layers swappable, testable, and
-free of duplication. Do not invent parallel mechanisms for the same job.
+## Strategy and pipeline
 
-## Repository Pattern
-Use for storage and scan history. Hides the storage engine (SQLite/Hive) behind an
-interface.
-```text
-ScanHistoryRepository
-ToyInventoryRepository
-ModelVersionRepository
-```
+`YoloDetectionMapper`, `ToyDetectionRules`, and `ToyTrackingEngine` are
+replaceable lower-layer collaborators. They produce observations, not product
+completion decisions.
 
-## Strategy Pattern
-Use for interchangeable detection engines. The app depends on the interface, never a
-concrete detector.
-```text
-ToyDetector          // interface
-MockToyDetector      // phase 1
-TfliteToyDetector    // later
-```
+## Temporal builder
 
-## Registry Pattern
-Use for centralized category definitions. **One** registry, no duplicated category maps.
-```text
-ToyCategoryRegistry
-```
-Each entry defines: label, display name, whether it counts as a toy, minimum confidence,
-ignored status, UI display behavior. See [business-logic-principles.md](business-logic-principles.md).
+`RoomSnapshotBuilder` owns temporal fusion and emits immutable snapshots with
+an explicit quality result.
 
-## Service Pattern
-Use for business logic. Pure, testable, no UI or camera access.
-```text
-ToyCountingService
-ToyDetectionRules
-FrameProcessingService
-```
+## Pure domain services
 
-## State Object Pattern
-Use for live detection state. Immutable snapshots the UI renders.
-```text
-LiveDetectionState
-TrackedToyState
-ToyCountSummary
-```
+`CleanupProgressEngine` and `ToyBotRewardService` are deterministic services.
+They do not know about Flutter widgets, camera lifecycle, or storage.
 
-## Adapter Pattern
-Use when wrapping TFLite, ONNX, or future runtimes so the rest of the app stays runtime-
-agnostic.
-```text
-TfliteToyDetectorAdapter
-```
+## Single orchestrator
 
-## Painter Pattern
-Use for drawing bounding boxes via CustomPainter. The painter receives prepared state
-only — it computes no business values.
-```text
-DetectionOverlayPainter
-```
+`KidGameController` owns the session lifecycle and publishes immutable
+`KidGameState`. UI callbacks request transitions; widgets do not derive them.
 
-## Configuration Object Pattern
-Use for thresholds and performance settings. **Do not scatter constants across files.**
-```text
-RealtimeDetectionConfig
-```
-Holds: `minimumStableFrames`, `maximumMissingFrames`, `iouMatchThreshold`,
-`targetInferenceFps`, overlay opacity, and other tunables.
+## Repository
 
-## Pattern selection guide
+History, active-session markers, and settings use Riverpod repositories.
+Writes happen only at lifecycle boundaries, never inside the frame loop.
 
-| Need | Pattern |
-|------|---------|
-| Swap detection engine | Strategy |
-| Wrap a native AI runtime | Adapter |
-| Central category truth | Registry |
-| Persist summaries/history | Repository |
-| Counting / validation logic | Service |
-| Pass live state to UI | State Object |
-| Draw overlay | Painter |
-| Centralize thresholds | Configuration Object |
+## Central configuration
+
+All perception thresholds and game timings live in `RealtimeDetectionConfig`.

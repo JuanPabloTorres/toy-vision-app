@@ -1,0 +1,39 @@
+# Changelog
+
+Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
+formato sigue Semantic Versioning.
+
+## [2.1.0] - 2026-09-27
+
+### Added
+
+- Nueva arquitectura por dominio, aplicación, percepción, infraestructura y
+  presentación, con contratos explícitos para el ciclo de limpieza.
+- Home, ruta de misión, visión y celebración con un lenguaje visual infantil
+  uniforme, assets propios y feedback de progreso.
+- Harness de replay/certificación, escenarios adversariales y pruebas de
+  integración y rendimiento.
+
+### Changed
+
+- Flujo principal optimizado para detectar, recoger físicamente, verificar la
+  desaparición, continuar con el siguiente juguete, comprobar el área y celebrar.
+- Seguimiento, reidentificación, estabilidad de escena y ajuste de cajas para
+  reducir duplicados y alinear el overlay con el objeto real.
+- Verificación del juguete activo con mayor cadencia y progreso visible.
+
+### Fixed
+
+- La recogida ya no depende de la mera pérdida de tracking ni de una escena
+  vacía; requiere evidencia temporal confirmada sobre el snapshot inicial.
+- Corrección de la orientación entre las cajas del detector y los píxeles usados
+  por el análisis para evitar cajas desplazadas o sobredimensionadas.
+- Continuación y finalización de la sesión después de una recogida confirmada.
+- Carrera de inicialización al comenzar desde Home, evitando que la captura de
+  evidencia interrumpa la navegación hacia la misión.
+
+### Release notes
+
+- Versión Flutter: `2.1.0+4`.
+- La validación comercial continúa condicionada por corpus físico completo,
+  revisión independiente, licencia del detector y firma de producción.

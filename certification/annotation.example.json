@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "replace_with_real_session_id",
+  "annotationStatus": "COMPLETE",
+  "frames": [
+    {
+      "frameId": 0,
+      "cameraMoving": false,
+      "objects": [
+        {
+          "objectId": "toy_001",
+          "kind": "toy",
+          "visible": true,
+          "occluded": false,
+          "bounds": {"x": 0.2, "y": 0.3, "width": 0.2, "height": 0.25}
+        },
+        {
+          "objectId": "negative_001",
+          "kind": "nonToy",
+          "visible": true,
+          "occluded": false,
+          "bounds": {"x": 0.6, "y": 0.3, "width": 0.2, "height": 0.3}
+        }
+      ]
+    }
+  ],
+  "expectedCollections": [
+    {"objectId": "toy_001", "minimumFrameId": 20, "maximumFrameId": 40}
+  ],
+  "expectCompletion": true
+}

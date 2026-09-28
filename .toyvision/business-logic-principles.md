@@ -1,90 +1,29 @@
-# Business Logic Principles — ToyVision Real-Time
+# Business Logic Principles
 
-A raw detection is **not** automatically a toy. Business logic — never the model, never
-the UI — decides what counts.
+## Evidence contract
 
-## Toy validation gate
+A raw detection becomes room evidence only after label mapping, category and
+confidence validation, valid normalized geometry, tracking, repeated temporal
+observation, and scene-quality qualification. One frame is never sufficient.
 
-A detection counts as a toy only if **all** of these are true:
+`ToyCategoryRegistry` is the sole category authority. Unknown and ignored
+objects never become supported toys.
 
-1. label exists in `ToyCategoryRegistry`;
-2. that category has `countsAsToy = true`;
-3. confidence is at or above the category's minimum confidence;
-4. the bounding box is valid (within frame, positive width/height, sane area);
-5. the object appears for enough stable frames (`minimumStableFrames`);
-6. the object is not a duplicate of an already-counted tracked toy;
-7. the object is not a person, pet, or otherwise ignored object.
+## Product truth
 
-## Toy categories (initial)
+- `initialDetectedEstimate`: immutable estimate from the opening snapshot.
+- `currentDetectedEstimate`: current qualified estimate.
+- `remainingEstimate` and `progressEstimate`: technical comparisons.
+- `visibleEnergy`: bounded game state that never decreases.
 
-```text
-toy_car
-toy_truck
-doll
-stuffed_animal
-building_blocks
-ball
-action_figure
-toy_train
-puzzle
-board_game
-not_toy
-```
+These values describe what the current model could reliably observe; they are
+not proof of total physical-room cleanliness.
 
-## Ignored / negative categories
+## Completion contract
 
-These must never be counted and (by default) never shown to normal users:
+Full energy starts `finalChecking`. Repeated qualified low/zero snapshots are
+required before `completionCandidate`. Only explicit human confirmation may
+start celebration and completion.
 
-```text
-person
-pet
-shoe
-clothes
-bottle
-cup
-furniture
-bed
-pillow
-phone
-remote_control
-book
-unknown
-```
-
-## Toy category registry contract
-
-`ToyCategoryRegistry` is the single source of category truth. Each entry defines:
-
-- `label` — the model/raw label key;
-- `displayName` — user-facing name;
-- `countsAsToy` — boolean;
-- `minimumConfidence` — per-category threshold;
-- `isIgnored` — boolean;
-- `uiDisplayBehavior` — how/whether it renders.
-
-No other file may define a parallel category map. Changing a model label requires
-updating this registry in the same change.
-
-## Default thresholds
-
-These live in `RealtimeDetectionConfig`, never inline:
-
-```text
-minimumStableFrames = 3
-maximumMissingFrames = 10
-iouMatchThreshold    = 0.45
-targetInferenceFps   = 5 to 10
-```
-
-## Counting rule
-
-- **Never count every frame.** Count stable, tracked toys.
-- Once a tracked toy has been counted, set `hasBeenCounted = true` so it is never
-  re-counted while it remains tracked.
-- A toy missing for more than `maximumMissingFrames` is dropped from tracking; if it
-  reappears it is matched by tracking logic, not blindly re-counted.
-
-## Ownership
-
-This logic lives in the Business Logic Layer (`lib/business/`) and is owned by the
-Business Logic Agent. Guardrail: [skills/preserve-business-logic.md](skills/preserve-business-logic.md).
+Micro rewards use cooldown/idempotency. The 25/50/75 energy milestones fire at
+most once per session. Restart creates a fresh snapshot and reward ledger.

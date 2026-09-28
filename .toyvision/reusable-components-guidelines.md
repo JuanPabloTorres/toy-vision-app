@@ -19,7 +19,8 @@ AppIconButton    // tappable icon control (pause, reset, save)
 ```text
 LiveCounterPanel       // total toy count display
 ToySummaryPanel        // per-category breakdown
-DetectionOverlayPainter// CustomPainter for bounding boxes
+ToyBotEnergyMeter       // monotonic child-facing game energy
+ToyBotStage             // Tobi reactions and reduced-motion-safe feedback
 EmptyDetectionHint     // "point at toys" hint state
 PrivacyNotice          // visible privacy reminder
 ```
@@ -45,7 +46,7 @@ PrivacyNotice          // visible privacy reminder
 
 All visual constants come from `app_theme.dart` and shared constants in
 `lib/core/constants/`: colors, typography, spacing scale, border radius, shadows,
-animation durations, overlay opacity. A component that needs a new token adds it to the
+animation durations, camera scrim opacity, and energy colors. A component that needs a new token adds it to the
 token source, not inline.
 
 Guardrail: [skills/preserve-reusable-components.md](skills/preserve-reusable-components.md).

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../app_assets.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
+import 'app_image.dart';
+
+enum ToyButtonState { idle, loading, success, disabled }
 
 /// The one canonical "big friendly pill" call-to-action for Mateo's flow.
 ///
-/// Before this existed every screen (splash, home, intro, mission-complete,
+/// Before this existed every screen (home, intro, mission-complete,
 /// camera action row) hand-rolled its own near-identical pill button. This
 /// widget is the single source of truth — CLAUDE.md forbids forking visual
 /// components, so new CTAs add a *parameter* here, never a new private
@@ -26,9 +30,11 @@ class PrimaryActionButton extends StatefulWidget {
     this.fontSize = 22,
     this.borderRadius = AppRadii.pill,
     this.pulse = false,
+    this.state = ToyButtonState.idle,
+    this.successLabel = '¡LISTO!',
   });
 
-  /// Button text, e.g. "Comenzar", "Nueva misión", "Ya lo recogí".
+  /// Button text, e.g. "¡Jugar!", "Continuar", "Sí, terminamos".
   final String label;
 
   /// Pill fill color — use a token (missionYellow for the main CTA,
@@ -42,7 +48,7 @@ class PrimaryActionButton extends StatefulWidget {
   /// icon family.
   final Widget? leading;
 
-  /// Shows a soft chevron on the trailing edge (splash / home "forward" CTAs).
+  /// Shows a soft chevron on the trailing edge for forward CTAs.
   final bool trailingChevron;
 
   /// Stretch to fill the available width. When false the pill hugs its
@@ -56,21 +62,34 @@ class PrimaryActionButton extends StatefulWidget {
   /// action that matters. Disabled automatically when the platform requests
   /// reduced motion. Use it only on the *primary* CTA of a screen.
   final bool pulse;
+  final ToyButtonState state;
+  final String successLabel;
 
   @override
   State<PrimaryActionButton> createState() => _PrimaryActionButtonState();
 }
 
 class _PrimaryActionButtonState extends State<PrimaryActionButton>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const double _depthOffset = 5;
 
-  late final AnimationController _controller = AnimationController(
+  late final AnimationController _pulseController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
   );
-  late final Animation<double> _scale = Tween<double>(begin: 1.0, end: 1.04)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  late final Animation<double> _pulseScale =
+      Tween<double>(begin: 1.0, end: 1.04).animate(
+    CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+  );
+  late final AnimationController _tapController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  late final Animation<double> _tapScale = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.96), weight: 35),
+    TweenSequenceItem(tween: Tween(begin: 0.96, end: 1.03), weight: 35),
+    TweenSequenceItem(tween: Tween(begin: 1.03, end: 1.0), weight: 30),
+  ]).animate(CurvedAnimation(parent: _tapController, curve: Curves.easeOut));
 
   bool _isPressed = false;
 
@@ -83,7 +102,9 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
   @override
   void didUpdateWidget(PrimaryActionButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pulse != widget.pulse) _syncAnimation();
+    if (oldWidget.pulse != widget.pulse || oldWidget.state != widget.state) {
+      _syncAnimation();
+    }
   }
 
   /// The pulse runs only when both the caller asks for it AND the platform
@@ -91,28 +112,54 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
   void _syncAnimation() {
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (widget.pulse && !reduceMotion) {
-      if (!_controller.isAnimating) _controller.repeat(reverse: true);
+    if (widget.pulse && widget.state == ToyButtonState.idle && !reduceMotion) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
     } else {
-      _controller.stop();
-      _controller.value = 0;
+      _pulseController.stop();
+      _pulseController.value = 0;
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pulseController.dispose();
+    _tapController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final pill = _buildPill();
+    final pill = AnimatedBuilder(
+      animation: _tapScale,
+      builder: (context, child) => Transform.scale(
+        scale: _tapScale.value,
+        child: child,
+      ),
+      child: _buildPill(),
+    );
     final sized =
         widget.expand ? SizedBox(width: double.infinity, child: pill) : pill;
+    final enabled = widget.state != ToyButtonState.loading &&
+        widget.state != ToyButtonState.disabled;
+    final presented = Semantics(
+      button: true,
+      enabled: enabled,
+      label: widget.state == ToyButtonState.loading
+          ? '${widget.label}, cargando'
+          : widget.state == ToyButtonState.success
+              ? widget.successLabel
+              : widget.label,
+      child: AnimatedOpacity(
+        duration: AppDurations.fast,
+        opacity: widget.state == ToyButtonState.disabled ? 0.48 : 1,
+        child: sized,
+      ),
+    );
 
-    if (!widget.pulse) return sized;
-    return ScaleTransition(scale: _scale, child: sized);
+    if (!widget.pulse) return presented;
+    return ScaleTransition(scale: _pulseScale, child: presented);
   }
 
   Widget _buildPill() {
@@ -145,7 +192,10 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
         color: Colors.transparent,
         borderRadius: radius,
         child: InkWell(
-          onTap: widget.onPressed,
+          onTap: widget.state == ToyButtonState.loading ||
+                  widget.state == ToyButtonState.disabled
+              ? null
+              : _activate,
           onHighlightChanged: (pressed) {
             if (_isPressed == pressed) return;
             setState(() => _isPressed = pressed);
@@ -160,7 +210,10 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
                 stops: const [0.0, 0.55, 1.0],
               ),
               borderRadius: radius,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.45),
+                width: 2,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -168,16 +221,19 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
                 vertical: AppSpacing.lg,
               ),
               child: Row(
-                mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisSize:
+                    widget.expand ? MainAxisSize.max : MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (widget.leading != null) ...[
-                    widget.leading!,
+                  if (_leading != null) ...[
+                    _leading!,
                     const SizedBox(width: AppSpacing.md),
                   ],
                   Flexible(
                     child: Text(
-                      widget.label,
+                      widget.state == ToyButtonState.success
+                          ? widget.successLabel
+                          : widget.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -195,7 +251,8 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
                       ),
                     ),
                   ),
-                  if (widget.trailingChevron) ...[
+                  if (widget.trailingChevron &&
+                      widget.state == ToyButtonState.idle) ...[
                     const SizedBox(width: AppSpacing.sm),
                     Icon(
                       Icons.chevron_right_rounded,
@@ -210,6 +267,30 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
         ),
       ),
     );
+  }
+
+  Widget? get _leading => switch (widget.state) {
+        ToyButtonState.loading => const SizedBox.square(
+            dimension: 24,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 3,
+            ),
+          ),
+        ToyButtonState.success => const AppImage(
+            assetPath: AppAssets.starIcon,
+            fallbackIcon: Icons.star_rounded,
+            fallbackColor: Colors.white,
+            size: 28,
+          ),
+        ToyButtonState.idle || ToyButtonState.disabled => widget.leading,
+      };
+
+  void _activate() {
+    if (!(MediaQuery.maybeOf(context)?.disableAnimations ?? false)) {
+      _tapController.forward(from: 0);
+    }
+    widget.onPressed();
   }
 
   Color _lighten(Color color, double amount) {

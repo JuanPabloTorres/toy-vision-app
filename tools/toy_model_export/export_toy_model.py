@@ -13,10 +13,8 @@ names. Drop it into the Flutter app at:
 and Toy Vision uses it automatically on the next launch
 (YoloModelConfig.resolve()).
 
-IMPORTANT — keep PROMPTS in sync with the Dart side:
-    lib/detection/yolo/yolo_detection_mapper.dart  →  `toyModelLabels`
-The exported model's class names are exactly these strings; the mapper
-translates them to the app's registry labels.
+The exported class names are detector diagnostics only. Runtime acceptance
+must remain label-independent and is performed by numeric evidence fusion.
 
 Usage (Windows PowerShell):
     cd tools/toy_model_export
@@ -36,8 +34,8 @@ from __future__ import annotations
 import os
 import shutil
 
-# The toy vocabulary. These strings become the model's class names and
-# MUST match the keys in the Dart `toyModelLabels` map.
+# Exact vocabulary embedded in the currently distributed artifact. These
+# strings are training/export inputs, never runtime decision rules.
 PROMPTS = [
     "teddy bear",
     "stuffed animal",
@@ -49,19 +47,8 @@ PROMPTS = [
     "toy train",
     "helicopter",
     "toy helicopter",
-    "red helicopter",
     "toy airplane",
     "toy plane",
-    "airplane",
-    "plane",
-    "spaceship",
-    "toy spaceship",
-    "rocket",
-    "toy rocket",
-    "robot",
-    "toy robot",
-    "dinosaur",
-    "toy dinosaur",
     "ball",
     "building blocks",
     "lego",
@@ -69,8 +56,6 @@ PROMPTS = [
     "stacking rings",
     "action figure",
     "puzzle",
-    "red car",
-    "red toy",
     "toy",
 ]
 

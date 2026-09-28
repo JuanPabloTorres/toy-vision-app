@@ -44,7 +44,9 @@ class AppOpacity {
 class AppDurations {
   AppDurations._();
 
-  static const Duration fast = Duration(milliseconds: 150);
+  // Child-facing touch feedback should be perceptible without feeling slow.
+  // The visual design specification defines a 180-250 ms range.
+  static const Duration fast = Duration(milliseconds: 200);
   static const Duration medium = Duration(milliseconds: 250);
   static const Duration celebrate = Duration(milliseconds: 600);
 }

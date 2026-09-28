@@ -3,7 +3,7 @@
 Rules for human labelers producing training data for the ToyVision toy detector.
 The detector only **detects**; counting, validity, duplicate identity, and ignored
 behavior live in the business layer (`ToyCategoryRegistry`, `ToyDetectionRules`,
-`ToyTrackingEngine`, `ToyCountingService`). Label accordingly.
+`ToyTrackingEngine`, `RoomSnapshotBuilder`, and `CleanupProgressEngine`). Label accordingly.
 
 Cross-references:
 - [class-taxonomy.md](class-taxonomy.md) — canonical class list and definitions.

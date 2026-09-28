@@ -1,66 +1,50 @@
-# CLAUDE.md — ToyVision Real-Time
+# CLAUDE.md — Toy Vision
 
-Operating instructions for Claude Code in this repository. The full governance lives in
-[.toyvision/](.toyvision/) — this file is the entry point and the non-negotiable rules.
+Toy Vision is a local-first Flutter game in which cleaning any supported toy
+charges Tobi. Computer vision is a silent sensor; Tobi is the child-facing game.
 
-## Product purpose
+## Authoritative production flow
 
-ToyVision is a mobile-first app that **detects, tracks, and counts toys live** from the camera.
-It is **local-first and privacy-first**: inference runs on-device; images are never uploaded
-without explicit consent.
+```text
+YOLO camera observations
+→ mapping and validation
+→ physical tracking and scene quality
+→ RoomSnapshotBuilder
+→ immutable RoomSnapshot
+→ CleanupProgressEngine
+→ KidGameController / KidGamePhase
+→ ToyBotRewardService
+→ Kid UI
+→ reinforced final check
+→ human confirmation
+→ celebration
+```
 
-- Stack: Flutter + Dart + Material 3, state via Riverpod.
-- Local AI: YOLO exported to TFLite (behind a swappable detector interface).
-- Phase 1 is **mock-first**: a deterministic mock detector drives the pipeline; the real
-  camera + TFLite path is Phase 2. Check [.toyvision/](.toyvision/) for current phase scope.
+There is one primary cleanup state machine: `KidGamePhase`. Do not introduce
+per-object pickup goals, selected-object guidance, child-facing detection boxes,
+or a second definition of progress/completion.
 
-## Architecture & layer boundaries
+## Boundaries
 
-Strict separation — code belongs to exactly one layer:
+- `lib/detection/`: model lifecycle and raw mapping.
+- `lib/tracking/`: physical identity across frames.
+- `lib/business/cleanup/`: snapshot, progress, quality, and reward rules.
+- `lib/camera/controllers/`: orchestration only.
+- `lib/ui/` and `lib/camera/screens/`: presentation only.
+- `lib/storage/`: privacy-safe session estimates and preferences; never media.
+- `lib/core/config/`: all thresholds and timings.
 
-| Layer | Location | Holds |
-|-------|----------|-------|
-| UI | `lib/ui/`, `lib/camera/screens/` | Presentation only, design tokens, reusable components |
-| State | `lib/camera/*controller*`, Riverpod notifiers | UI state orchestration |
-| Services | `lib/camera/services/` | Camera lifecycle, frame processing |
-| Inference | `lib/detection/` | Detectors (strategy), raw detection models |
-| Tracking + Validation | `lib/tracking/`, `lib/business/` | IoU tracking, rules, counting |
-| Config | `lib/core/config/` | Single source of truth for thresholds |
+## Non-negotiable rules
 
-Detection pipeline: **detector → validation rules → tracking → counting → UI overlay**.
+- Understand impact and state objective, files, risk, tests, and acceptance before editing.
+- Do not put inference or business rules in widgets.
+- Preserve one-way data flow and one authoritative owner per product concept.
+- Do not modify the model artifact without explicit authorization and evaluation evidence.
+- Keep inference on-device; never save or upload camera media by default.
+- Camera-loop changes require latency, memory, FPS, and throttling review.
+- Reuse the component system; do not add dependencies without need.
+- Every behavior change needs focused tests; finish with `flutter analyze` and `flutter test`.
+- Do not commit without explicit confirmation.
 
-## Mandatory protocol before modifying code
-
-1. **Analyze impact first.** Route the task to its owning agent via
-   [.toyvision/agent-routing.md](.toyvision/agent-routing.md) and respond in the agent
-   response standard (objective, files, architecture/business/UI/privacy/performance impact,
-   steps, tests, acceptance, risks) **before** editing.
-2. Every change must state: **objective, files affected, risk, test plan, expected result.**
-3. Use `/think` for analysis, `/spec` to specify, `/audit` to review structure, `/diagnose`
-   for root-cause bugs, `/guardrails` to check rules, `/report` for findings, `/context` for
-   orientation.
-
-## Hard rules
-
-- **Do not** touch camera, frame loop, inference, or overlay without a performance review:
-  account for **latency, memory, FPS, and throttling**. Preserve the single-inflight guard.
-- **Do not** duplicate visual components — reuse `lib/ui/components/`; add variants, not forks.
-- **Do not** put business logic inside widgets. Widgets are presentation only.
-- **Do not** add unnecessary packages or refactor beyond the task.
-- Keep **descriptive names**; no abbreviated or cryptic identifiers.
-- Respect layer separation (UI / state / services / inference / storage / validation).
-- **Privacy:** local-first processing; never upload images without explicit consent.
-- **AI/model changes** must version dataset / model / export and carry evaluation evidence.
-  Do not change the TFLite model or its export without the user's go-ahead.
-- **Testing:** every behavior change needs unit/scenario tests (use `lib/testing/` fixtures).
-  Every visual change needs screenshot/visual evidence.
-- **Git:** no automatic commits without explicit confirmation.
-
-## Tooling
-
-- **MCP servers** (`.mcp.json`): `playwright` (visual tests), `context7` (library docs),
-  `codegraph` (semantic code intelligence — callers/impact), `ruflo` (multi-agent + memory).
-  Some require a Claude Code restart to connect.
-- **CodeGraph**: indexed; use for impact analysis before touching shared code.
-- **Agents** (`.claude/agents/`): mirror [.toyvision/agents/](.toyvision/agents/) — route work
-  to the owning agent. They propose and review; they do not bypass these rules.
+The active governance is in `.toyvision/`. Historical research under
+`.toyvision/archive/` is not production architecture.

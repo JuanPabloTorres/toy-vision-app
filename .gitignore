@@ -22,6 +22,17 @@ Thumbs.db
 # Coverage / test
 coverage/
 
+# Real-device certification data may contain private camera pixels/metadata.
+certification/runs/
+certification/results/
+certification/captures/
+certification/annotations/
+certification/dataset.json
+certification/latest_device_status.json
+certification/*.png
+certification/*.xml
+certification/instrumented*/
+
 # Tooling (local, not committed)
 .codegraph/
 .swarm/

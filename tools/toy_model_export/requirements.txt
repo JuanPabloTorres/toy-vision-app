@@ -2,11 +2,12 @@
 # Heavy: ultralytics pulls torch + torchvision; the TFLite export path also
 # needs tensorflow. First install is large (~1-2 GB). CPU-only is fine.
 
-ultralytics>=8.3.0
+ultralytics==8.4.60
 
 # TFLite export backend used by Ultralytics' exporter.
-tensorflow>=2.13.0
+tensorflow==2.19.0
+tf_keras==2.19.0
 
 # Pinned indirectly by ultralytics, listed for clarity.
-onnx>=1.15.0
-onnxruntime>=1.17.0
+onnx==1.21.0
+onnxruntime==1.26.0

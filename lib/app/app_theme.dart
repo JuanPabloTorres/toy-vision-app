@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/theme/app_button_styles.dart';
 import '../ui/theme/app_colors.dart';
+import '../ui/theme/app_radii.dart';
 import '../ui/theme/app_typography.dart';
 
 // Re-export every design token from a single entry point so existing code
@@ -50,6 +51,41 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: AppButtonStyles.text(color: AppColors.textBlueDark),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: AppColors.shadowMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          side: BorderSide(
+            color: AppColors.primaryBlue.withValues(alpha: 0.16),
+            width: 2,
+          ),
+        ),
+        titleTextStyle: AppTypography.cardTitle,
+        contentTextStyle: AppTypography.body,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.textBlueDark,
+        contentTextStyle: AppTypography.bodyStrong.copyWith(
+          color: Colors.white,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primaryBlue,
+        linearTrackColor: AppColors.surfaceSoft,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: AppColors.primaryBlue,
+          minimumSize: const Size(48, 48),
+        ),
       ),
       textTheme: const TextTheme(
         headlineMedium: AppTypography.celebrationHeadline,

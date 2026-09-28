@@ -8,7 +8,7 @@ import 'app_colors.dart';
 class AppTypography {
   AppTypography._();
 
-  /// Two-tone "Toy Vision" brand wordmark base. Size is set per placement
+  /// Two-tone "Tobi Ordena" brand wordmark base. Size is set per placement
   /// (splash hero vs. home header) via `copyWith(fontSize: …)`; the weight
   /// and tight line-height live here so every wordmark matches.
   static const TextStyle wordmark = TextStyle(
@@ -16,7 +16,7 @@ class AppTypography {
     height: 1.0,
   );
 
-  /// Mission title: "Misión: recoge tus juguetes"
+  /// Short game-state title such as "¡A recoger!".
   static const TextStyle missionTitle = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.w800,
@@ -40,7 +40,7 @@ class AppTypography {
     letterSpacing: 0.6,
   );
 
-  /// Coach bubble main message ("Veo 5 juguetes…").
+  /// Coach bubble main message ("¡Sigue así!").
   static const TextStyle coachMessage = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -104,7 +104,7 @@ class AppTypography {
     height: 1.15,
   );
 
-  /// Card / tile title ("Recoge 3 juguetes hoy").
+  /// Card / tile title ("Aventuras con Tobi").
   static const TextStyle cardTitle = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w700,

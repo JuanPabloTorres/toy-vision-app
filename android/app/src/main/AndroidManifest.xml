@@ -2,12 +2,10 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- ToyVision detects toys via the live camera. No microphone is used. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-
-    <!-- Phase 6.0: the ultralytics_yolo plugin downloads the default model
-         (yolo26n, ~6 MB) on first run and caches it locally. After that, no
-         network is used. Required only for that first download. -->
+    <!-- flutter_3d_controller serves the bundled glTF asset over a loopback-only
+         HTTP server. Android gates even 127.0.0.1 sockets behind INTERNET. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- The camera plugin's manifest declares these for audio/photo capture,
          which ToyVision never does (audio disabled, no frames/video saved).
@@ -16,7 +14,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
     <application
-        android:label="Toy Vision"
+        android:label="Tobi Ordena"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -22,10 +22,18 @@ class AppColors {
 
   // Brand tints used by gradients/soft panels. Named here so the same warm
   // and sky shades stop reappearing as raw hex literals across screens.
-  static const Color missionYellowLight = Color(0xFFFFD658); // sunny gradient top
+  static const Color missionYellowLight =
+      Color(0xFFFFD658); // sunny gradient top
   static const Color skyLight = Color(0xFFBFE3FF); // splash gradient top
-  static const Color cream = Color(0xFFFFF7E6); // warm card fill (daily mission)
+  static const Color cream =
+      Color(0xFFFFF7E6); // warm card fill (daily mission)
   static const Color panelInkDark = Color(0xFF1C2F67); // celebration panel
+  static const Color actionGreen = Color(0xFF20C84B);
+  static const Color energyGreen = Color(0xFF43E36F);
+  static const Color energyYellow = Color(0xFFFFD43B);
+  static const Color celebrationOrange = Color(0xFFFF8A2A);
+  static const Color overlayCyan = Color(0xFF35DDF2);
+  static const Color overlayGreen = Color(0xFF6AF08B);
 
   // --- Semantic roles ---
   // These are the names the design system reaches for. They are aliases over
@@ -46,8 +54,7 @@ class AppColors {
   static const Color onSurface = textBlueDark;
   static const Color onSurfaceMuted = textSecondary;
   static const Color textPrimary = textBlueDark;
-  // Bright highlight used to make a child-facing element "pop" (selected
-  // challenge card, new-record badge, basket when the goal is reached).
+  // Bright highlight used to make child-facing feedback pop.
   static const Color childFriendlyHighlight = missionYellow;
   // Neutral hairline border for cards/dividers on light surfaces.
   static const Color hairline = Color(0x14123B7A); // ~8% brand blue
@@ -67,28 +74,4 @@ class AppColors {
   // --- Glass overlays drawn over the camera (mission screen) ---
   static const Color glassFill = Color(0xCCFFFFFF);
   static const Color glassBorder = Color(0x22123B7A);
-
-  // --- Bounding-box styles (DetectionOverlayPainter) ---
-  static const Color boxTarget = missionYellow;
-  static const Color boxSecondary = progressGreen;
-  static const Color boxDoubtful = Color(0x8834C759);
-  static const Color boxConfirmed = progressGreen;
-
-  // --- Status indicators ---
-  static const Color statusReady = progressGreen;
-  static const Color statusPaused = missionYellow;
-  static const Color statusBusy = missionYellow;
-  static const Color statusError = stopRed;
-
-  // --- Phase 4 candidate-review palette (still used by review panel) ---
-  static const Color candidatePending = missionYellow;
-  static const Color candidateConfirmed = progressGreen;
-  static const Color candidateNotToy = Color(0xFF8A93A8);
-  static const Color candidateUnsure = gameOrange;
-  static const Color candidateIgnoredAuto = Color(0x668A93A8);
-
-  // --- Legacy aliases kept so older widgets compile ---
-  static const Color boxToy = boxSecondary;
-  static const Color boxCounted = boxConfirmed;
-  static const Color badgeBg = Color(0x1A1479FF);
 }

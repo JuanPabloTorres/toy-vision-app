@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "acceptance": {
+    "minimumPrecision": 0.90,
+    "minimumRecall": 0.85,
+    "minimumF1": 0.87,
+    "maximumIdSwitches": 0,
+    "maximumDuplicateCollections": 0,
+    "maximumFalseCollections": 0,
+    "minimumIdentityAuc": 0.90,
+    "minimumToyNonToyAuc": 0.85
+  },
+  "sessions": [
+    {
+      "id": "replace_with_real_session_id",
+      "capture": "captures/replace_with_real_session",
+      "annotations": "annotations/replace_with_real_session.annotations.json",
+      "split": "train",
+      "tags": ["known_toy"]
+    }
+  ]
+}
