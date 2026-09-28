@@ -15,6 +15,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
   final AudioPlayer _voice;
   double _volume = 1;
   bool _musicPlaying = false;
+  bool _voicePlaying = false;
   int _voiceGeneration = 0;
   Future<void>? _configuration;
   AudioCue? _lastCue;
@@ -29,8 +30,11 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
   static const _success = 'audio/button_success_chime.wav';
   static const _tap = 'audio/button_tap_pop.wav';
   static const _complete = 'audio/mission_complete_reward.wav';
+  static const _musicGain = 0.65;
+  static const _duckedMusicGain = 0.28;
+  static const _voiceGain = 0.95;
   static const _voiceAssets = <AudioCue, String>{
-    AudioCue.sessionStart: 'audio/tobi_session_start.wav',
+    AudioCue.gameReady: 'audio/tobi_session_start.wav',
     AudioCue.roomVerification: 'audio/tobi_room_verification.wav',
     AudioCue.toyFound: 'audio/tobi_toy_collected.wav',
     AudioCue.toyCollected: 'audio/tobi_toy_collected.wav',
@@ -62,7 +66,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
       if (cue == AudioCue.cleanupCompleted) {
         await _music.stop();
         _musicPlaying = false;
-      } else if (cue == AudioCue.sessionStart &&
+      } else if ((cue == AudioCue.gameReady || cue == AudioCue.sessionStart) &&
           enabledChannels.contains(AudioChannel.music)) {
         await _startMusic();
       }
@@ -94,20 +98,21 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
     await _music.setReleaseMode(ReleaseMode.loop);
     await _music.play(
       AssetSource(_missionLoop),
-      volume: _volume * 0.24,
+      volume: _volume * _musicGain,
     );
     _musicPlaying = true;
   }
 
   Future<void> _playEffect(AudioCue cue) async {
     final (asset, gain) = switch (cue) {
+      AudioCue.gameReady || AudioCue.uiTap => (_tap, 0.72),
       AudioCue.toyFound ||
       AudioCue.toyCollected ||
       AudioCue.encouragement ||
       AudioCue.almostFinished =>
         (_success, 0.68),
       AudioCue.cleanupCompleted => (_complete, 0.8),
-      AudioCue.detectionUncertain => (_tap, 0.28),
+      AudioCue.detectionUncertain => (_tap, 0.35),
       AudioCue.sessionStart || AudioCue.roomVerification => (null, 0.0),
     };
     if (asset == null) return;
@@ -130,12 +135,18 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
     _lastVoiceAt = now;
     final generation = ++_voiceGeneration;
     await _voice.stop();
-    if (_musicPlaying) await _music.setVolume(_volume * 0.09);
-    await _voice.play(AssetSource(asset), volume: _volume * 0.92);
+    if (_musicPlaying) {
+      await _music.setVolume(_volume * _duckedMusicGain);
+    }
+    await _voice.play(AssetSource(asset), volume: _volume * _voiceGain);
+    _voicePlaying = true;
     unawaited(
       _voice.onPlayerComplete.first.then((_) async {
-        if (generation == _voiceGeneration && _musicPlaying) {
-          await _music.setVolume(_volume * 0.24);
+        if (generation == _voiceGeneration) {
+          _voicePlaying = false;
+          if (_musicPlaying) {
+            await _music.setVolume(_volume * _musicGain);
+          }
         }
       }),
     );
@@ -145,9 +156,11 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
   Future<void> setVolume(double volume) async {
     _volume = volume.clamp(0.0, 1.0);
     await _attempt(() async {
-      await _music.setVolume(_volume * 0.24);
+      await _music.setVolume(
+        _volume * (_voicePlaying ? _duckedMusicGain : _musicGain),
+      );
       await _effects.setVolume(_volume);
-      await _voice.setVolume(_volume * 0.92);
+      await _voice.setVolume(_volume * _voiceGain);
     });
   }
 
@@ -162,6 +175,7 @@ class AudioplayersAudioFeedbackService implements AudioFeedbackService {
           await _effects.stop();
         case AudioChannel.voice:
           _voiceGeneration += 1;
+          _voicePlaying = false;
           await _voice.stop();
       }
     });

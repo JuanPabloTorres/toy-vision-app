@@ -3,7 +3,7 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
-## [2.4.1] - 2026-09-28
+## [2.4.2] - 2026-09-28
 
 ### Added
 
@@ -15,6 +15,30 @@ formato sigue Semantic Versioning.
 
 - El diagnóstico de cámara queda excluido de builds release y permanece
   separado del modo infantil.
+
+### Fixed
+
+- Reactivar Modo infantil fuerza la superficie visual infantil y apaga el
+  diagnóstico de cámara seleccionado previamente.
+
+### Release notes
+
+- Versión Flutter: `2.4.2+9`.
+
+## [2.4.1] - 2026-09-28
+
+### Fixed
+
+- La música y la primera frase de Tobi comienzan al entrar a la misión, sin
+  depender de que termine el escaneo inicial del cuarto.
+- La mezcla de música y voz usa niveles audibles y conserva una reducción
+  moderada de la música mientras Tobi habla.
+- Los botones para iniciar la misión y comenzar el escaneo reproducen un
+  sonido corto tipo burbuja respetando los ajustes de sonido del usuario.
+
+### Release notes
+
+- Versión Flutter: `2.4.1+8`.
 
 ## [2.4.0] - 2026-09-27
 

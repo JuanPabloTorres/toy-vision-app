@@ -7,6 +7,8 @@ const allAudioChannels = <AudioChannel>{
 };
 
 enum AudioCue {
+  gameReady,
+  uiTap,
   sessionStart,
   roomVerification,
   toyFound,

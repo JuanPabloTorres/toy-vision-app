@@ -94,7 +94,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Modo infantil',
                   subtitle: 'Mantiene la interfaz simple y sin datos técnicos',
                   value: settings.kidModeEnabled,
-                  onChanged: controller.setKidMode,
+                  onChanged: (enabled) async {
+                    if (enabled) {
+                      ref.read(visionDisplayModeProvider.notifier).state =
+                          VisionDisplayMode.kid;
+                    }
+                    await controller.setKidMode(enabled);
+                  },
                 ),
               ],
             ),

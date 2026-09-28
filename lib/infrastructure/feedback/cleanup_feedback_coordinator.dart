@@ -67,20 +67,22 @@ final audioFeedbackServiceProvider = Provider<AudioFeedbackService>((ref) {
   return service;
 });
 
+final enabledAudioChannelsProvider = Provider<Set<AudioChannel>>((ref) {
+  final settings = ref.watch(appSettingsProvider);
+  return <AudioChannel>{
+    if (settings.musicEnabled) AudioChannel.music,
+    if (settings.soundEnabled) AudioChannel.effects,
+    if (settings.voiceEnabled) AudioChannel.voice,
+  };
+});
+
 final cleanupFeedbackCoordinatorProvider =
     Provider<CleanupFeedbackCoordinator>((ref) {
   final coordinator = CleanupFeedbackCoordinator(
     audio: ref.watch(audioFeedbackServiceProvider),
     events: ref.watch(domainEventBusProvider).events,
     animate: ref.read(animationDirectorProvider.notifier).handle,
-    enabledChannels: () {
-      final settings = ref.read(appSettingsProvider);
-      return <AudioChannel>{
-        if (settings.musicEnabled) AudioChannel.music,
-        if (settings.soundEnabled) AudioChannel.effects,
-        if (settings.voiceEnabled) AudioChannel.voice,
-      };
-    },
+    enabledChannels: () => ref.read(enabledAudioChannelsProvider),
     animationsEnabled: () => ref.read(appSettingsProvider).animationsEnabled,
   );
   ref.onDispose(coordinator.dispose);
