@@ -269,7 +269,8 @@ class CleanupController extends Notifier<CleanupState> {
         _discoveryTransitionTimer == null) {
       final count = outcome.initialSnapshot!.toys.length;
       state = state.copyWith(
-        message: '¡Encontré $count ${count == 1 ? 'juguete' : 'juguetes'}!',
+        message:
+            '¡Encontré $count ${count == 1 ? 'cosa por recoger' : 'cosas por recoger'}!',
       );
       _discoveryTransitionTimer = Timer(const Duration(seconds: 1), () {
         _discoveryTransitionTimer = null;
@@ -297,7 +298,7 @@ class CleanupController extends Notifier<CleanupState> {
     CompletionEvidence? completionEvidence,
   }) {
     if (phase == CleanupPhase.ready) return '¡Vamos a recoger!';
-    if (phase == CleanupPhase.discovering) return 'Buscando juguetes…';
+    if (phase == CleanupPhase.discovering) return 'Buscando cosas por recoger…';
     if (phase == CleanupPhase.completed) return '¡Lo lograste!';
     if (phase == CleanupPhase.verifyingRoom) {
       return completionEvidence?.guidance ??

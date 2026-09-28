@@ -66,15 +66,18 @@ Set `annotationStatus` to `COMPLETE` only after every recorded frame has:
 
 - `cameraMoving` reviewed;
 - stable physical `objectId` values across time;
-- `kind` (`toy` or `nonToy`), visibility, occlusion and normalized bounds;
+- `kind` (`toy` for any positive cleanup item or `nonToy` for a negative;
+  legacy schema names), visibility, occlusion and normalized bounds;
 - expected collection windows and expected session completion reviewed.
 
 Build `certification/dataset.json` from `dataset.example.json`. It must contain
 independent `train`, `validation` and `test` sessions and collectively cover:
 known and unknown toys, stuffed toys, vehicles, figures, blocks, small objects,
-partial occlusion, multiple toys, low light, motion blur, hands, camera motion,
-disappear/reappear, and clothing, shoes, remotes, bottles, boxes and furniture
-hard negatives. Paths are resolved relative to the dataset manifest.
+loose clothing, shoes, books, backpacks, remotes, bottles and boxes as positive
+cleanup items; partial occlusion, multiple similar items, low light, motion
+blur, hands, camera motion and disappear/reappear. Hard negatives must include
+the same item types while worn, held or stored, plus people, furniture,
+fixtures and empty floor. Paths are resolved relative to the dataset manifest.
 
 ## Validate, calibrate and evaluate
 

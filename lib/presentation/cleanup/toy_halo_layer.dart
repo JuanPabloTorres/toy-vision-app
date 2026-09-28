@@ -59,8 +59,8 @@ class _ToyHaloLayerState extends ConsumerState<ToyHaloLayer>
     return Semantics(
       container: true,
       label: visibleTracks.isEmpty
-          ? 'Buscando juguetes'
-          : '${visibleTracks.length} ${visibleTracks.length == 1 ? 'juguete resaltado' : 'juguetes resaltados'}',
+          ? 'Buscando cosas por recoger'
+          : '${visibleTracks.length} ${visibleTracks.length == 1 ? 'objeto resaltado' : 'objetos resaltados'}',
       child: IgnorePointer(
         child: TickerMode(
           enabled: motionEnabled,

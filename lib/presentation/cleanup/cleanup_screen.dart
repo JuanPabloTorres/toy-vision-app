@@ -364,7 +364,7 @@ class _PreparationView extends StatelessWidget {
               const ToyPageHero(
                 mascot: Tobi3dStage(enable3d: false, fallbackSize: 108),
                 message:
-                    '¿Listo para ayudarme? Mira el cuarto con calma y yo encontraré los juguetes.',
+                    '¿Listo para ayudarme? Mira el cuarto con calma y yo encontraré las cosas por recoger.',
               ),
               const SizedBox(height: AppSpacing.lg),
               const _PreparationTips(),
@@ -667,12 +667,12 @@ class _VisionCoachCard extends StatelessWidget {
         assetPath = AppAssets.searchIcon;
         fallbackIcon = Icons.search_rounded;
         title = state.modelReady
-            ? 'Encuentra los juguetes'
+            ? 'Encuentra las cosas por recoger'
             : 'Preparando la visión…';
         final found = state.discoveryProgress.stableToyCount;
         body = found == 0
             ? 'Mueve la cámara despacio y mantén visible el suelo.'
-            : '$found ${found == 1 ? 'juguete encontrado' : 'juguetes encontrados'}. Sigue recorriendo el cuarto.';
+            : '$found ${found == 1 ? 'objeto encontrado' : 'objetos encontrados'}. Sigue recorriendo el cuarto.';
         accent = AppColors.primaryBlue;
         progress = state.discoveryProgress.coverageEstimate;
       case CleanupPhase.verifyingRemoval:
@@ -846,7 +846,7 @@ class _CelebrationView extends StatelessWidget {
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Text(
-                              '${state.collected} juguetes',
+                              '${state.collected} recogidos',
                               style: AppTypography.bodyStrong,
                             ),
                             const SizedBox(width: AppSpacing.lg),

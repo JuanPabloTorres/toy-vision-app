@@ -24,7 +24,7 @@ current implementation and does not overwrite or delete unrelated work.
 | `tools/toyvision_certify.dart`, `tools/certification/**` | KEEP | real corpus validation/evaluation entry points |
 | `tools/certify_galaxy_s25.ps1` | KEEP | real-device gate with model rejection and evidence capture |
 | `tools/toy_model_export/**` | KEEP + GOVERN | reproducible export assets/logs; large binaries and AGPL provenance matter |
-| `assets/models/toys.tflite` | KEEP + BLOCK COMMERCIAL | bundled 62,664,952-byte model; licensing unresolved |
+| `assets/models/cleanup_items.tflite` | KEEP + BLOCK COMMERCIAL | bundled 62,764,989-byte model; licensing unresolved |
 | Rive/Lottie/glTF/audio assets | KEEP + VERIFY DEVICE | local fallbacks/tests exist; physical behavior unverified |
 | Android config | IMPROVE BEFORE RELEASE | camera/privacy choices are explicit; app id TODO and debug signing remain |
 | `docs/certification_harness.md` | KEEP | current operational authority |

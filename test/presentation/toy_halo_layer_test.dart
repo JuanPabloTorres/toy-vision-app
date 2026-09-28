@@ -35,7 +35,7 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('1 juguete resaltado'), findsOneWidget);
+    expect(find.bySemanticsLabel('1 objeto resaltado'), findsOneWidget);
     expect(find.textContaining('car'), findsNothing);
     expect(find.textContaining('0.87'), findsNothing);
     expect(find.byType(CustomPaint), findsWidgets);
@@ -65,7 +65,7 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('Buscando juguetes'), findsOneWidget);
+    expect(find.bySemanticsLabel('Buscando cosas por recoger'), findsOneWidget);
   });
 
   testWidgets('overlapping tracks render as one physical toy halo',
@@ -103,7 +103,7 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('1 juguete resaltado'), findsOneWidget);
+    expect(find.bySemanticsLabel('1 objeto resaltado'), findsOneWidget);
     expect(
       selectDistinctToyHalos(
         [first, duplicate],

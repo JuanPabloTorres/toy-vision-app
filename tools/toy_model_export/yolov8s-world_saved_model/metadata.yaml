@@ -1,6 +1,6 @@
-description: 'Ultralytics YOLOv8s-world model '
+description: Ultralytics YOLOv8s-world model
 author: Ultralytics
-date: '2026-06-02T17:49:52.912199'
+date: '2026-09-27T22:24:37.576859'
 version: 8.4.60
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
@@ -31,6 +31,16 @@ names:
   17: action figure
   18: puzzle
   19: toy
+  20: clothing
+  21: shirt
+  22: pants
+  23: sock
+  24: shoe
+  25: book
+  26: backpack
+  27: bottle
+  28: cardboard box
+  29: remote control
 args:
   data: null
   batch: 1

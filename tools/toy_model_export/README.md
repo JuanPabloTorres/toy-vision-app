@@ -2,11 +2,11 @@
 
 This directory is development tooling and is not distributed as executable
 Python code inside the mobile application. It exports the current
-YOLOv8s-world model to a local TFLite detector with a fixed 20-class toy
-vocabulary.
+YOLOv8s-world model to a local TFLite detector with a fixed 30-class cleanup
+vocabulary covering toys plus common loose clothing and household items.
 
 The vocabulary is detector training input. Runtime fusion never uses these
-strings to decide whether an observation is a toy.
+strings to decide whether an observation is a cleanup item.
 
 ## Reproducible environment
 
@@ -28,8 +28,9 @@ input 480×480, float32, and no built-in NMS. Its provenance is recorded in
 Exact checked-in artifact:
 
 ```text
-assets/models/toys.tflite
-SHA-256 B21CB8ED24EADBCE951C462E126A65D5D328EA0D8C27DEFF68C17AC38B018A91
+assets/models/cleanup_items.tflite
+62,764,989 bytes
+SHA-256 E30E3A03995A2F7E2FFB929D8BA26736EBBE2D275049A64FB35DF7A5F4657FEE
 ```
 
 Export may still vary across platforms because upstream conversion tools are

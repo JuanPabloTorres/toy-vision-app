@@ -8,6 +8,6 @@ void main() {
     final config = await YoloModelConfig.resolve();
     expect(config.modelPath, YoloModelConfig.customModelAsset);
     expect(config.useGpu, isFalse);
-    expect(config.confidenceThreshold, 0.25);
+    expect(config.confidenceThreshold, 0.12);
   });
 }

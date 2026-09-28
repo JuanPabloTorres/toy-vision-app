@@ -11,9 +11,9 @@ confirms the intended use.
 | Boundary | Distributed/used component | Evidence | License status |
 |---|---|---|---|
 | Training tooling | Python `ultralytics==8.4.60`, TensorFlow 2.19, tf_keras 2.19, ONNX 1.21, ONNX Runtime 1.26 | `tools/toy_model_export/requirements.txt` and export log | Ultralytics code is AGPL-3.0 |
-| Source model | `yolov8s-world.pt`, fixed to 20 toy prompts before export | export script and generated metadata | Ultralytics-derived, metadata says AGPL-3.0 |
-| Exported format | float32 TFLite, detect, 480×480, 20 classes, 62,664,952 bytes | `yolov8s-world_saved_model/metadata.yaml` | A standard file format does not change model provenance |
-| Exported artifact | `assets/models/toys.tflite`, SHA-256 `B21CB8ED24EADBCE951C462E126A65D5D328EA0D8C27DEFF68C17AC38B018A91` | repository artifact | Treat as AGPL/Enterprise-sensitive |
+| Source model | `yolov8s-world.pt`, fixed to 30 cleanup-item prompts before export | export script and generated metadata | Ultralytics-derived, metadata says AGPL-3.0 |
+| Exported format | float32 TFLite, detect, 480×480, 30 classes, 62,764,989 bytes | `yolov8s-world_saved_model/metadata.yaml` | A standard file format does not change model provenance |
+| Exported artifact | `assets/models/cleanup_items.tflite`, SHA-256 `E30E3A03995A2F7E2FFB929D8BA26736EBBE2D275049A64FB35DF7A5F4657FEE` | repository artifact | Treat as AGPL/Enterprise-sensitive |
 | Mobile runtime | `ultralytics_yolo` 0.4.3 from pub.dev | `pubspec.lock` and cached package metadata | Package LICENSE is AGPL-3.0 |
 | App integration | `YOLOView` owns CameraX/TFLite inference and emits pixels plus boxes | `CleanupScreen` and `YoloStreamingFrameAdapter` | Runtime is included in the APK |
 
