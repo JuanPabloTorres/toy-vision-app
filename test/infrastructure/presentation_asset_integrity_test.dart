@@ -77,6 +77,9 @@ void main() {
       expect(audio.getUint16(20, Endian.little), 1, reason: path);
       expect(audio.getUint16(22, Endian.little), 1, reason: path);
       expect(audio.getUint16(34, Endian.little), 16, reason: path);
+      expect(audio.getUint32(24, Endian.little), 16000, reason: path);
+      final durationSeconds = audio.getUint32(40, Endian.little) / 2 / 16000;
+      expect(durationSeconds, inInclusiveRange(1.0, 4.0), reason: path);
       var peak = 0;
       for (var offset = 44; offset + 1 < audio.lengthInBytes; offset += 2) {
         final sample = audio.getInt16(offset, Endian.little).abs();

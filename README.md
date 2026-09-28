@@ -1,6 +1,6 @@
 # Toy Vision
 
-Versión actual: `2.4.2+9`. El flujo de ramas y versionado obligatorio está
+Versión actual: `2.4.3+10`. El flujo de ramas y versionado obligatorio está
 documentado en [`docs/development_workflow.md`](docs/development_workflow.md).
 
 Aplicación Flutter local-first que ayuda a un niño a recoger juguetes, ropa y

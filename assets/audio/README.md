@@ -15,7 +15,7 @@ the application; only the generated PCM WAV clips are bundled.
 Generation used:
 
 ```text
---length_scale 0.85 --noise_scale 0.62 --noise_w 0.72 --sentence_silence 0.08
+--length_scale 1.13 --noise_scale 0.62 --noise_w 0.72 --sentence_silence 0.08
 ```
 
 The exact original phrases are:
@@ -28,11 +28,18 @@ The exact original phrases are:
 - `tobi_cleanup_completed.wav`: “¡Lo logramos! ¡El cuarto quedó fantástico!”
 - `tobi_detection_uncertain.wav`: “Espera un poquito. Estoy mirando otra vez.”
 
-After synthesis, normalize the PCM files with:
+After fresh synthesis, apply Tobi's synthetic youthful character treatment and
+normalize the PCM files with:
 
 ```powershell
 C:\DevTools\flutter\bin\cache\dart-sdk\bin\dart.exe run tools/audio_voice_postprocess.dart
 ```
+
+The character pass raises pitch by five semitones, including formants, to move
+the adult source away from a narrator sound and toward Tobi's light, playful
+robot-child voice. It intentionally operates offline and shortens delivery
+back to a lively natural pace; run it only once after regenerating the original
+Piper output. The slower `length_scale` above compensates for that pitch pass.
 
 - Runtime: https://github.com/rhasspy/piper/releases/tag/2023.11.14-2
 - Voice model: https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0/es/es_ES/carlfm/x_low

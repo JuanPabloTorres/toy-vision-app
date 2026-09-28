@@ -58,15 +58,15 @@ coverage sectors, background-reveal score, optional depth score and every
 |---|---|
 | Galaxy S25 connected | `BLOCKED_PHYSICAL_DEVICE_WRONG_MODEL`: ADB exposes SM-S942U (`m1q`, Galaxy S26/API 37), not an SM-S93* S25 |
 | Alternate-device smoke/camera/model | PASS on SM-S942U; this does not satisfy the S25 gate |
-| 2.4.2 integrated camera/model smoke | PASS on profile SM-S942U before the final presentation-only guard: 57 metadata-only frames / 16.09 s, 0 collections and 0 completions; no controlled pickup was executed |
-| Final 2.4.2 profile installation | PASS: Android reports versionName 2.4.2 / versionCode 9; final camera smoke NOT_EXECUTED because the device locked after installation |
-| Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered on 2.4.2 and release binary inspection finds neither the overlay marker nor diagnostic setting text |
+| 2.4.2 integrated camera/model smoke | PASS on profile SM-S942U before the final presentation-only guard and 2.4.3 voice integration: 57 metadata-only frames / 16.09 s, 0 collections and 0 completions; no controlled pickup was executed |
+| Final 2.4.3 profile installation/camera | NOT_EXECUTED: the device locked before the final integrated artifact could be exercised |
+| Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in the 2.4.3 code and final release binary inspection must exclude both diagnostic strings |
 | Pan/scene-anchor safety | PASS on final instrumented SM-S942U run: 308 frames, 0 collections while viewpoint diverged from anchor |
 | Physical detector recall | FAIL in observed scene: snapshot 2 with at least 3 visible toys |
 | Full physical cleanup/completion | PENDING; no accepted stable-view removal through celebration |
 | Scenario corpus recorded | PENDING |
 | Perception accuracy thresholds calibrated | PENDING |
 | Sustained thermal/battery limits accepted | PENDING |
-| Preliminary profile performance | PARTIAL: long 2.4.1 run native p95 164.06 ms, FPS p50 3.99, 719605 KB PSS; exact 2.4.2 smoke p95 165.21 ms, FPS p50 3.96, thermal status 2 / skin 42.0 °C; recorder overhead present |
+| Preliminary profile performance | PARTIAL: long 2.4.1 run native p95 164.06 ms, FPS p50 3.99, 719605 KB PSS; 2.4.2 smoke p95 165.21 ms, FPS p50 3.96, thermal status 2 / skin 42.0 °C; recorder overhead present and 2.4.3 not measured |
 | 3D/Rive/Lottie/audio verified on device | PARTIAL: invalid generic Rive HUD found and disabled; remaining channels pending |
 | Commercial detector license resolved | PENDING |
