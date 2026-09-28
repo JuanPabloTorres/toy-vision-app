@@ -3,6 +3,26 @@
 Todos los cambios relevantes de Toy Vision se documentan en este archivo. El
 formato sigue Semantic Versioning.
 
+## [2.2.0] - 2026-09-27
+
+### Added
+
+- Voz alegre en español para Tobi durante inicio, recogida, revisión,
+  incertidumbre y celebración.
+- Música chiptune original y reproducible para la misión, sin melodías ni
+  muestras de terceros.
+
+### Changed
+
+- Música, efectos y voz se mezclan en canales independientes; la música baja
+  mientras Tobi habla y cada interruptor de ajustes silencia su canal real.
+
+### Release notes
+
+- Versión Flutter: `2.2.0+5`.
+- Los nuevos audios funcionan completamente offline. La validación auditiva en
+  dispositivo físico sigue pendiente antes de certificar una release.
+
 ## [2.1.0] - 2026-09-27
 
 ### Added

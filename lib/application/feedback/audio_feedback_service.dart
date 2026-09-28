@@ -1,5 +1,11 @@
 enum AudioChannel { music, effects, voice }
 
+const allAudioChannels = <AudioChannel>{
+  AudioChannel.music,
+  AudioChannel.effects,
+  AudioChannel.voice,
+};
+
 enum AudioCue {
   sessionStart,
   roomVerification,
@@ -12,7 +18,10 @@ enum AudioCue {
 }
 
 abstract interface class AudioFeedbackService {
-  Future<void> play(AudioCue cue);
+  Future<void> play(
+    AudioCue cue, {
+    Set<AudioChannel> enabledChannels = allAudioChannels,
+  });
   Future<void> stop(AudioChannel channel);
   Future<void> setVolume(double volume);
   Future<void> dispose();

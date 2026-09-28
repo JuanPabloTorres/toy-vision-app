@@ -24,12 +24,13 @@ void main() {
       'toyvision.onboarding.completed.v1': true,
     });
     final preferences = await SharedPreferences.getInstance();
+    final audio = _SilentAudio();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(preferences),
           progressRepositoryProvider.overrideWithValue(_EmptyProgress()),
-          audioFeedbackServiceProvider.overrideWithValue(_SilentAudio()),
+          audioFeedbackServiceProvider.overrideWithValue(audio),
           resolvedYoloConfigProvider.overrideWith(
             (ref) async => const YoloModelConfig(),
           ),
@@ -86,6 +87,7 @@ void main() {
       container.read(cleanupControllerProvider).phase,
       CleanupPhase.idle,
     );
+    expect(audio.stopped, containsAll(AudioChannel.values));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -131,17 +133,22 @@ void main() {
 }
 
 class _SilentAudio implements AudioFeedbackService {
+  final List<AudioChannel> stopped = [];
+
   @override
   Future<void> dispose() async {}
 
   @override
-  Future<void> play(AudioCue cue) async {}
+  Future<void> play(
+    AudioCue cue, {
+    Set<AudioChannel> enabledChannels = allAudioChannels,
+  }) async {}
 
   @override
   Future<void> setVolume(double volume) async {}
 
   @override
-  Future<void> stop(AudioChannel channel) async {}
+  Future<void> stop(AudioChannel channel) async => stopped.add(channel);
 }
 
 class _EmptyProgress implements ProgressRepository {

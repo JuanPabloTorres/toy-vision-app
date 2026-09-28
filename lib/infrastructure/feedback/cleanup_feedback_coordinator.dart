@@ -15,18 +15,18 @@ class CleanupFeedbackCoordinator {
     required AudioFeedbackService audio,
     required Stream<CleanupEvent> events,
     required void Function(CleanupEvent event) animate,
-    bool Function(AudioCue cue)? canPlay,
+    Set<AudioChannel> Function()? enabledChannels,
     bool Function()? animationsEnabled,
   })  : _audio = audio,
         _animate = animate,
-        _canPlay = canPlay ?? ((_) => true),
+        _enabledChannels = enabledChannels ?? (() => allAudioChannels),
         _animationsEnabled = animationsEnabled ?? (() => true) {
     _subscription = events.listen(_handle);
   }
 
   final AudioFeedbackService _audio;
   final void Function(CleanupEvent event) _animate;
-  final bool Function(AudioCue cue) _canPlay;
+  final Set<AudioChannel> Function() _enabledChannels;
   final bool Function() _animationsEnabled;
   late final StreamSubscription<CleanupEvent> _subscription;
 
@@ -50,7 +50,10 @@ class CleanupFeedbackCoordinator {
   }
 
   Future<void> _play(AudioCue cue) async {
-    if (_canPlay(cue)) await _audio.play(cue);
+    final channels = _enabledChannels();
+    if (channels.isNotEmpty) {
+      await _audio.play(cue, enabledChannels: channels);
+    }
   }
 
   Future<void> dispose() async {
@@ -70,11 +73,13 @@ final cleanupFeedbackCoordinatorProvider =
     audio: ref.watch(audioFeedbackServiceProvider),
     events: ref.watch(domainEventBusProvider).events,
     animate: ref.read(animationDirectorProvider.notifier).handle,
-    canPlay: (cue) {
+    enabledChannels: () {
       final settings = ref.read(appSettingsProvider);
-      final isMusic =
-          cue == AudioCue.sessionStart || cue == AudioCue.roomVerification;
-      return isMusic ? settings.musicEnabled : settings.soundEnabled;
+      return <AudioChannel>{
+        if (settings.musicEnabled) AudioChannel.music,
+        if (settings.soundEnabled) AudioChannel.effects,
+        if (settings.voiceEnabled) AudioChannel.voice,
+      };
     },
     animationsEnabled: () => ref.read(appSettingsProvider).animationsEnabled,
   );

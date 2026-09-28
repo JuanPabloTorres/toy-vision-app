@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,13 +43,47 @@ void main() {
     }
 
     for (final path in <String>[
-      'assets/audio/mission_playground_loop.wav',
+      'assets/audio/tobi_adventure_loop.wav',
       'assets/audio/button_success_chime.wav',
       'assets/audio/button_tap_pop.wav',
       'assets/audio/mission_complete_reward.wav',
+      'assets/audio/tobi_session_start.wav',
+      'assets/audio/tobi_toy_collected.wav',
+      'assets/audio/tobi_almost_finished.wav',
+      'assets/audio/tobi_room_verification.wav',
+      'assets/audio/tobi_cleanup_completed.wav',
+      'assets/audio/tobi_detection_uncertain.wav',
     ]) {
       final audio = await rootBundle.load(path);
       expect(audio.lengthInBytes, greaterThan(44), reason: path);
+      expect(
+        String.fromCharCodes(audio.buffer.asUint8List(0, 4)),
+        'RIFF',
+        reason: path,
+      );
+    }
+  });
+
+  test('Tobi voice clips are mono PCM and retain safe peak headroom', () async {
+    for (final path in <String>[
+      'assets/audio/tobi_session_start.wav',
+      'assets/audio/tobi_toy_collected.wav',
+      'assets/audio/tobi_almost_finished.wav',
+      'assets/audio/tobi_room_verification.wav',
+      'assets/audio/tobi_cleanup_completed.wav',
+      'assets/audio/tobi_detection_uncertain.wav',
+    ]) {
+      final audio = await rootBundle.load(path);
+      expect(audio.getUint16(20, Endian.little), 1, reason: path);
+      expect(audio.getUint16(22, Endian.little), 1, reason: path);
+      expect(audio.getUint16(34, Endian.little), 16, reason: path);
+      var peak = 0;
+      for (var offset = 44; offset + 1 < audio.lengthInBytes; offset += 2) {
+        final sample = audio.getInt16(offset, Endian.little).abs();
+        if (sample > peak) peak = sample;
+      }
+      expect(peak, lessThan(32760), reason: path);
+      expect(peak, greaterThan(16000), reason: path);
     }
   });
 }

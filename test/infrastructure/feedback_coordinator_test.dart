@@ -17,6 +17,10 @@ void main() {
       audio: audio,
       events: events.events,
       animate: container.read(animationDirectorProvider.notifier).handle,
+      enabledChannels: () => const {
+        AudioChannel.effects,
+        AudioChannel.voice,
+      },
     );
     addTearDown(() async {
       await coordinator.dispose();
@@ -28,6 +32,10 @@ void main() {
     await _flushEvents();
 
     expect(audio.cues, [AudioCue.toyCollected]);
+    expect(audio.channels.single, {
+      AudioChannel.effects,
+      AudioChannel.voice,
+    });
     var animation = container.read(animationDirectorProvider);
     expect(animation.tobiState, TobiState.foundToy);
     expect(animation.modelAnimation, 'clap');
@@ -50,9 +58,16 @@ Future<void> _flushEvents() => Future<void>.delayed(Duration.zero);
 
 class _RecordingAudio implements AudioFeedbackService {
   final List<AudioCue> cues = [];
+  final List<Set<AudioChannel>> channels = [];
 
   @override
-  Future<void> play(AudioCue cue) async => cues.add(cue);
+  Future<void> play(
+    AudioCue cue, {
+    Set<AudioChannel> enabledChannels = allAudioChannels,
+  }) async {
+    cues.add(cue);
+    channels.add(enabledChannels);
+  }
 
   @override
   Future<void> setVolume(double volume) async {}
