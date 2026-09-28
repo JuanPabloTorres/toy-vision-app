@@ -162,6 +162,7 @@ Map<String, Object?> sessionEvidenceToJson(
             'stableSceneWindow': item.stableSceneWindow,
             'interactionObserved': item.interactionObserved,
             'directPickupEvidence': item.directPickupEvidence,
+            'returnToAnchorPickupEvidence': item.returnToAnchorPickupEvidence,
             'reidentificationCandidate': item.reidentificationCandidate,
             'deviceMotion': item.deviceMotion,
             'backgroundRevealScore': item.backgroundRevealScore,
@@ -197,6 +198,8 @@ Map<String, Object?> sessionEvidenceToJson(
               'sceneCoverage': evidence.completionEvidence!.sceneCoverage,
               'blockingReasons': evidence.completionEvidence!.blockingReasons,
               'cleanDecision': evidence.completionEvidence!.cleanDecision.name,
+              'verificationStage':
+                  evidence.completionEvidence!.verificationStage.name,
               'guidance': evidence.completionEvidence!.guidance,
               'coverageSectors': evidence.completionEvidence!.coverageSectors,
               'confirmedToyCount':
@@ -259,6 +262,7 @@ Map<String, Object?> _track(ToyTrack track) => {
       'interactionEvidence': track.interactionEvidence,
       'lastInteractionAt': track.lastInteractionAt?.toUtc().toIso8601String(),
       'lostDuringCameraMotion': track.lostDuringCameraMotion,
+      'cameraMotionAtLoss': track.cameraMotionAtLoss,
       'presence': track.presence.name,
       'gameStatus': track.status.name,
       'firstSeenAt': track.firstSeenAt.toUtc().toIso8601String(),

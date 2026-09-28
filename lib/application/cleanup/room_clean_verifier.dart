@@ -11,22 +11,29 @@ enum RoomCleanDecision {
   roomClean,
 }
 
+enum RoomVerificationStage {
+  waitingForPickups,
+  surveyingRoom,
+  confirmingEmpty,
+  complete,
+}
+
 class RoomCleanPolicy {
   const RoomCleanPolicy({
     this.minimumCleanDuration = const Duration(seconds: 2),
     this.minimumCleanFrames = 5,
-    this.minimumViewpoints = 2,
-    this.minimumCameraMotion = 0.08,
+    this.minimumVisualViewpoints = 2,
     this.viewpointSimilarityThreshold = 0.92,
-    this.minimumDirectionalSectors = 4,
+    this.minimumHorizontalRegions = 3,
+    this.maximumStableObservationGap = const Duration(milliseconds: 1200),
   });
 
   final Duration minimumCleanDuration;
   final int minimumCleanFrames;
-  final int minimumViewpoints;
-  final double minimumCameraMotion;
+  final int minimumVisualViewpoints;
   final double viewpointSimilarityThreshold;
-  final int minimumDirectionalSectors;
+  final int minimumHorizontalRegions;
+  final Duration maximumStableObservationGap;
 }
 
 class CompletionEvidence {
@@ -46,6 +53,7 @@ class CompletionEvidence {
     this.sceneStable = false,
     this.cameraTrackingGood = false,
     this.depthConsistency,
+    this.verificationStage = RoomVerificationStage.waitingForPickups,
   }) : blockingReasons = List<String>.unmodifiable(blockingReasons);
 
   final CompletionConfidence confidence;
@@ -63,6 +71,7 @@ class CompletionEvidence {
   final bool sceneStable;
   final bool cameraTrackingGood;
   final double? depthConsistency;
+  final RoomVerificationStage verificationStage;
 }
 
 class RoomCleanEvaluation {
@@ -98,15 +107,16 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
   EvidenceBasedRoomCleanVerifier({
     this.policy = const RoomCleanPolicy(),
   }) : _coverageTracker = RoomCoverageTracker(
-          minimumDirectionalSectors: policy.minimumDirectionalSectors,
-          minimumFallbackViewpoints: policy.minimumViewpoints,
+          minimumHorizontalRegions: policy.minimumHorizontalRegions,
+          minimumVisualViewpoints: policy.minimumVisualViewpoints,
           viewpointSimilarityThreshold: policy.viewpointSimilarityThreshold,
         );
 
   final RoomCleanPolicy policy;
 
-  DateTime? _verificationStartedAt;
-  DateTime? _cleanWindowStartedAt;
+  RoomVerificationStage _stage = RoomVerificationStage.waitingForPickups;
+  DateTime? _lastStableEmptyAt;
+  Duration _stableEmptyDuration = Duration.zero;
   final RoomCoverageTracker _coverageTracker;
   int _cleanFrames = 0;
 
@@ -141,7 +151,7 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
         session.confirmedCollected == total &&
         initialIds.difference(session.collectedTrackIds).isEmpty;
     final toyPresent = session.remainingEstimate > 0 || remainingStable > 0;
-    final wasVerifying = _verificationStartedAt != null;
+    final wasVerifying = _stage != RoomVerificationStage.waitingForPickups;
 
     if (toyPresent || !allCollected) {
       reset();
@@ -177,33 +187,33 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
           sceneStable: world.scene.canVerifyDisappearance,
           cameraTrackingGood: world.scene.spatial.cameraTrackingGood,
           depthConsistency: world.scene.spatial.depthConsistency,
+          verificationStage: RoomVerificationStage.waitingForPickups,
         ),
         verifying: false,
         verificationStarted: false,
       );
     }
 
-    final verificationStarted = _verificationStartedAt == null;
-    _verificationStartedAt ??= world.updatedAt;
+    final verificationStarted =
+        _stage == RoomVerificationStage.waitingForPickups;
     final coverageSnapshot = _coverageTracker.observe(world.scene);
 
     final sceneStable = world.scene.canVerifyDisappearance;
     final cameraTrackingGood = world.scene.spatial.cameraTrackingGood;
-    if (uncertainTracks == 0 && sceneStable && cameraTrackingGood) {
-      _cleanWindowStartedAt ??= world.updatedAt;
-      _cleanFrames += 1;
-    } else {
-      _cleanWindowStartedAt = null;
-      _cleanFrames = 0;
-    }
+    _observeEmptyFrame(
+      at: world.updatedAt,
+      stable: uncertainTracks == 0 && sceneStable && cameraTrackingGood,
+      candidatePresent: uncertainTracks > 0,
+    );
 
     final coverage = coverageSnapshot.coverage;
-    final cleanDuration = _cleanWindowStartedAt == null
-        ? Duration.zero
-        : world.updatedAt.difference(_cleanWindowStartedAt!);
+    final cleanDuration = _stableEmptyDuration;
     final cleanWindowComplete = cleanDuration >= policy.minimumCleanDuration &&
         _cleanFrames >= policy.minimumCleanFrames;
     final coverageComplete = coverage >= 1;
+    _stage = coverageComplete
+        ? RoomVerificationStage.confirmingEmpty
+        : RoomVerificationStage.surveyingRoom;
     final blockers = <String>[
       if (!snapshotEstablished) 'initial_snapshot_not_established',
       if (session.confirmedCollected == 0) 'no_verified_progress',
@@ -217,6 +227,7 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
       if (!cleanWindowComplete) 'clean_window_incomplete',
     ];
     final clean = blockers.isEmpty;
+    if (clean) _stage = RoomVerificationStage.complete;
     final decision = clean
         ? RoomCleanDecision.roomClean
         : RoomCleanDecision.needMoreCoverage;
@@ -240,6 +251,7 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
         sceneStable: sceneStable,
         cameraTrackingGood: cameraTrackingGood,
         depthConsistency: world.scene.spatial.depthConsistency,
+        verificationStage: _stage,
       ),
       verifying: !clean,
       verificationStarted: verificationStarted,
@@ -253,26 +265,66 @@ class EvidenceBasedRoomCleanVerifier implements RoomCleanVerifier {
     if (blockers.contains('ambiguous_toy_candidates')) {
       return 'Espera un momento: Tobi está comprobando algo que vio.';
     }
-    if (blockers.contains('scene_not_stable') ||
-        blockers.contains('camera_tracking_not_reliable')) {
-      return 'Mantén la cámara quieta un momento.';
+    if (coverage.coverage >= 1) {
+      return '¡Se ve limpio! Mantén la cámara quieta un momento.';
     }
     return switch (coverage.nextRequired) {
-      RoomCoverageSector.left => 'Miremos despacio hacia la izquierda.',
-      RoomCoverageSector.center => 'Miremos el centro del cuarto.',
-      RoomCoverageSector.right => 'Ahora miremos hacia la derecha.',
+      RoomCoverageSector.left =>
+        'Mira despacio hacia la izquierda y detente un momento.',
+      RoomCoverageSector.center =>
+        'Mira el centro del cuarto y detente un momento.',
+      RoomCoverageSector.right =>
+        'Mira despacio hacia la derecha y detente un momento.',
       RoomCoverageSector.floorLeft => 'Miremos el piso a la izquierda.',
       RoomCoverageSector.floorCenter => 'Bajemos la cámara para mirar el piso.',
       RoomCoverageSector.floorRight => 'Miremos el piso a la derecha.',
-      null => 'Mantén el cuarto visible un momento más.',
+      null => blockers.contains('scene_not_stable') ||
+              blockers.contains('camera_tracking_not_reliable')
+          ? 'Detén la cámara un momento para comprobar esta zona.'
+          : 'Mueve la cámara despacio y detente en otra parte del cuarto.',
     };
+  }
+
+  void _observeEmptyFrame({
+    required DateTime at,
+    required bool stable,
+    required bool candidatePresent,
+  }) {
+    if (candidatePresent) {
+      _resetEmptyWindow();
+      return;
+    }
+    if (!stable) {
+      final lastStable = _lastStableEmptyAt;
+      if (lastStable != null &&
+          at.difference(lastStable) > policy.maximumStableObservationGap) {
+        _resetEmptyWindow();
+      }
+      return;
+    }
+
+    final previousStable = _lastStableEmptyAt;
+    if (previousStable == null ||
+        at.difference(previousStable) > policy.maximumStableObservationGap) {
+      _stableEmptyDuration = Duration.zero;
+      _cleanFrames = 1;
+    } else {
+      _stableEmptyDuration += at.difference(previousStable);
+      _cleanFrames += 1;
+    }
+    _lastStableEmptyAt = at;
+  }
+
+  void _resetEmptyWindow() {
+    _lastStableEmptyAt = null;
+    _stableEmptyDuration = Duration.zero;
+    _cleanFrames = 0;
   }
 
   @override
   void reset() {
-    _verificationStartedAt = null;
-    _cleanWindowStartedAt = null;
+    _stage = RoomVerificationStage.waitingForPickups;
     _coverageTracker.reset();
-    _cleanFrames = 0;
+    _resetEmptyWindow();
   }
 }

@@ -220,6 +220,41 @@ void main() {
     expect(track.lostDuringCameraMotion, isTrue);
   });
 
+  test('device motion separates a pickup change from a camera pan', () {
+    final minorMotionTracker = ToyTracker();
+    final majorMotionTracker = ToyTracker();
+    final start = DateTime.utc(2026);
+    final observation = _typedObservation(
+      start,
+      0.2,
+      ObservationSource.detector,
+      true,
+    );
+    minorMotionTracker.update([observation], start, SceneState.stable);
+    majorMotionTracker.update([observation], start, SceneState.stable);
+
+    final missingAt = start.add(const Duration(milliseconds: 200));
+    minorMotionTracker.update(
+      const [],
+      missingAt,
+      SceneState.changed,
+      sceneMotion: .93,
+      deviceMotionAvailable: true,
+      deviceMotion: .10,
+    );
+    majorMotionTracker.update(
+      const [],
+      missingAt,
+      SceneState.changed,
+      sceneMotion: .93,
+      deviceMotionAvailable: true,
+      deviceMotion: .45,
+    );
+
+    expect(minorMotionTracker.tracks.single.cameraMotionAtLoss, .10);
+    expect(majorMotionTracker.tracks.single.cameraMotionAtLoss, .45);
+  });
+
   test('confirmed identity template cannot drift across later crops', () {
     final tracker = ToyTracker();
     final start = DateTime.utc(2026);
@@ -434,7 +469,10 @@ void main() {
       missingSince: now.subtract(const Duration(seconds: 2)),
       missingFrames: 10,
       interaction: false,
-    ).copyWith(lostDuringCameraMotion: true);
+    ).copyWith(
+      lostDuringCameraMotion: true,
+      cameraMotionAtLoss: 0.45,
+    );
     final fusion = const SensorFusionEngine().evaluateRemoval(
       track: track,
       scene: scene,
@@ -460,6 +498,55 @@ void main() {
       evidence.rejectionReasons,
       contains('physical_interaction_not_observed'),
     );
+  });
+
+  test('minor phone movement can recover after a strong anchor return', () {
+    final now = DateTime.utc(2026);
+    final scene = _scene(
+      now,
+      SceneState.stable,
+      similarity: 0.99,
+      spatial: SpatialObservation(
+        timestamp: now,
+        motionAvailable: true,
+        orientationAvailable: true,
+        gyroscopeRadPerSecond: 0.01,
+        linearAccelerationMetersPerSecond2: 0.01,
+        yawDegrees: 0,
+        pitchDegrees: 55,
+      ),
+    );
+    final track = _missingTrackAt(
+      now,
+      missingSince: now.subtract(const Duration(seconds: 3)),
+      missingFrames: 12,
+      interaction: false,
+    ).copyWith(
+      lostDuringCameraMotion: true,
+      cameraMotionAtLoss: 0.12,
+    );
+    final fusion = const SensorFusionEngine().evaluateRemoval(
+      track: track,
+      scene: scene,
+      currentRegionEmbedding: const [0, 1],
+      spatial: scene.spatial,
+    );
+
+    final evidence = const DisappearanceVerifier()
+        .evaluate(
+          track: track,
+          scene: scene,
+          currentRegionEmbedding: const [0, 1],
+          occluded: false,
+          reidentificationCandidate: false,
+          timestamp: now,
+          fusionEvidence: fusion,
+        )
+        .evidence;
+
+    expect(evidence.confirmed, isTrue);
+    expect(evidence.directPickupEvidence, isTrue);
+    expect(evidence.returnToAnchorPickupEvidence, isTrue);
   });
 
   test('pickup interaction stays attached to its disappearance episode', () {

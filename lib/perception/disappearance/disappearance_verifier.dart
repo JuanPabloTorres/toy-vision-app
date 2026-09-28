@@ -104,13 +104,31 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
     // changed, reobserved ROI in the same stable camera view is independent
     // physical evidence of removal. Losses that began during camera motion
     // are deliberately excluded from this path.
-    final directPickupEvidence = fusionEvidence != null &&
+    final stableDirectPickupEvidence = fusionEvidence != null &&
         !track.lostDuringCameraMotion &&
         stableSceneWindow &&
         regionReobserved &&
         fused.backgroundRevealScore >= 0.40 &&
         localSimilarity <= 0.82 &&
         fused.cameraTrackingGood;
+    // A child may move the phone slightly while using the other hand to pick
+    // up a toy. That must not poison the identity forever. After a longer
+    // absence, a strong return to the original anchor can recover only a
+    // minor-motion loss. Covers and real pans remain categorically excluded.
+    final returnToAnchorPickupEvidence = fusionEvidence != null &&
+        track.lostDuringCameraMotion &&
+        track.cameraMotionAtLoss <= 0.18 &&
+        stableSceneWindow &&
+        scene.stableFrameCount >= 6 &&
+        scene.similarityToStableAnchor >= 0.96 &&
+        regionReobserved &&
+        track.missingFrames >= 10 &&
+        duration >= const Duration(milliseconds: 2500) &&
+        fused.backgroundRevealScore >= 0.50 &&
+        localSimilarity <= 0.80 &&
+        fused.cameraTrackingGood;
+    final directPickupEvidence =
+        stableDirectPickupEvidence || returnToAnchorPickupEvidence;
     final corroboratingSignalCount = [
       fused.backgroundRevealed || directPickupEvidence,
       fused.depthConfirmsRemoval,
@@ -161,6 +179,7 @@ class DisappearanceVerifier implements ToyRemovalVerifier {
       interactionObserved: interactionObserved,
       reidentificationCandidate: reidentificationCandidate,
       directPickupEvidence: directPickupEvidence,
+      returnToAnchorPickupEvidence: returnToAnchorPickupEvidence,
       deviceMotion: fused.deviceMotion,
       backgroundRevealScore: fused.backgroundRevealScore,
       depthChangeScore: fused.depthChangeScore,

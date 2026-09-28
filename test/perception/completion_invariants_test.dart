@@ -69,8 +69,7 @@ void main() {
       policy: const RoomCleanPolicy(
         minimumCleanDuration: Duration(seconds: 2),
         minimumCleanFrames: 3,
-        minimumViewpoints: 2,
-        minimumCameraMotion: 0.05,
+        minimumVisualViewpoints: 2,
       ),
     );
 
@@ -80,30 +79,27 @@ void main() {
       session: session,
       uncertainTracks: 0,
     );
-    final second = verifier.evaluate(
-      snapshot: snapshot,
-      world: _world(
-        origin.add(const Duration(seconds: 1)),
-        const [0.8, 0.6],
-      ),
-      session: session,
-      uncertainTracks: 0,
-    );
-    final third = verifier.evaluate(
-      snapshot: snapshot,
-      world: _world(
-        origin.add(const Duration(milliseconds: 2100)),
-        const [0.8, 0.6],
-      ),
-      session: session,
-      uncertainTracks: 0,
-    );
+    RoomCleanEvaluation? evaluation;
+    for (final milliseconds in [500, 1000, 1500, 2000]) {
+      evaluation = verifier.evaluate(
+        snapshot: snapshot,
+        world: _world(
+          origin.add(Duration(milliseconds: milliseconds)),
+          const [0.8, 0.6],
+        ),
+        session: session,
+        uncertainTracks: 0,
+      );
+    }
 
     expect(first.verificationStarted, isTrue);
     expect(first.decision, RoomCleanDecision.needMoreCoverage);
-    expect(second.decision, RoomCleanDecision.needMoreCoverage);
-    expect(third.decision, RoomCleanDecision.roomClean);
-    expect(third.evidence.sceneCoverage, 1);
+    expect(evaluation?.decision, RoomCleanDecision.roomClean);
+    expect(evaluation?.evidence.sceneCoverage, 1);
+    expect(
+      evaluation?.evidence.verificationStage,
+      RoomVerificationStage.complete,
+    );
   });
 
   test('an admitted toy found during final verification cancels completion',
@@ -157,7 +153,7 @@ void main() {
       policy: const RoomCleanPolicy(
         minimumCleanDuration: Duration(seconds: 2),
         minimumCleanFrames: 3,
-        minimumDirectionalSectors: 4,
+        minimumHorizontalRegions: 3,
       ),
     );
 
@@ -190,15 +186,20 @@ void main() {
       uncertainTracks: 0,
     );
 
-    expect(center.evidence.sceneCoverage, 0.25);
+    expect(center.evidence.sceneCoverage, 0.5);
     expect(moving.decision, RoomCleanDecision.needMoreCoverage);
     expect(moving.verifying, isTrue);
-    expect(moving.evidence.sceneCoverage, 0.25);
+    expect(moving.evidence.sceneCoverage, 0.5);
 
-    final observations = [
+    final observations = <(int, double, double)>[
       (1000, -35.0, 0.0),
       (1800, 35.0, 0.0),
-      (3100, 0.0, 25.0),
+      (3100, 35.0, 0.0),
+      (3500, 35.0, 0.0),
+      (3900, 35.0, 0.0),
+      (4300, 35.0, 0.0),
+      (4700, 35.0, 0.0),
+      (5100, 35.0, 0.0),
     ];
     RoomCleanEvaluation? evaluation;
     for (final observation in observations) {
@@ -235,15 +236,16 @@ void main() {
       policy: const RoomCleanPolicy(
         minimumCleanDuration: Duration(seconds: 2),
         minimumCleanFrames: 3,
-        minimumDirectionalSectors: 4,
+        minimumHorizontalRegions: 3,
       ),
     );
 
     final observations = [
-      (0, 0.0, 0.0),
-      (700, -35.0, 0.0),
-      (1400, 35.0, 0.0),
-      (2200, 0.0, 25.0),
+      (0, 0.0, 55.0),
+      (600, -35.0, 55.0),
+      (1200, 35.0, 55.0),
+      (1600, 35.0, 55.0),
+      (2000, 35.0, 55.0),
     ];
     RoomCleanEvaluation? evaluation;
     for (final observation in observations) {
@@ -265,7 +267,7 @@ void main() {
 
     expect(evaluation?.decision, RoomCleanDecision.roomClean);
     expect(evaluation?.evidence.sceneCoverage, 1);
-    expect(evaluation?.evidence.coverageSectors, hasLength(4));
+    expect(evaluation?.evidence.coverageSectors, hasLength(3));
     expect(evaluation?.evidence.cleanDecision, RoomCleanDecision.roomClean);
   });
 }

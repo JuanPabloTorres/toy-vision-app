@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../core/math/vector_math.dart';
 import '../../domain/scene/scene_descriptor.dart';
 
@@ -28,13 +30,13 @@ class RoomCoverageSnapshot {
 /// orientation is unavailable, so unsupported devices never dead-end.
 class RoomCoverageTracker {
   RoomCoverageTracker({
-    this.minimumDirectionalSectors = 4,
-    this.minimumFallbackViewpoints = 2,
+    this.minimumHorizontalRegions = 3,
+    this.minimumVisualViewpoints = 2,
     this.viewpointSimilarityThreshold = 0.92,
   });
 
-  final int minimumDirectionalSectors;
-  final int minimumFallbackViewpoints;
+  final int minimumHorizontalRegions;
+  final int minimumVisualViewpoints;
   final double viewpointSimilarityThreshold;
 
   final Set<RoomCoverageSector> _visited = {};
@@ -51,23 +53,21 @@ class RoomCoverageTracker {
         scene.canVerifyDisappearance &&
         yaw != null &&
         pitch != null;
+    if (scene.canVerifyDisappearance &&
+        scene.embedding.isNotEmpty &&
+        _fallbackViewpoints.every(
+          (viewpoint) =>
+              cosineSimilarity(viewpoint, scene.embedding) <
+              viewpointSimilarityThreshold,
+        )) {
+      _fallbackViewpoints.add(List<double>.from(scene.embedding));
+    }
     if (orientationUsable) {
       _originYaw ??= yaw;
       _originPitch ??= pitch;
       final horizontal = _horizontalSector(_angleDelta(yaw, _originYaw!));
       final lookingAtFloor = pitch - _originPitch! >= 18;
       _visited.add(lookingAtFloor ? _floorSector(horizontal) : horizontal);
-    } else {
-      final embedding = scene.embedding;
-      if (scene.canVerifyDisappearance &&
-          embedding.isNotEmpty &&
-          _fallbackViewpoints.every(
-            (viewpoint) =>
-                cosineSimilarity(viewpoint, embedding) <
-                viewpointSimilarityThreshold,
-          )) {
-        _fallbackViewpoints.add(List<double>.from(embedding));
-      }
     }
     // A short pan makes the current frame unsuitable for adding coverage, but
     // it must not switch an established orientation sweep to the fallback
@@ -77,14 +77,26 @@ class RoomCoverageTracker {
 
   RoomCoverageSnapshot snapshot({bool? usesDeviceOrientation}) {
     final orientation = usesDeviceOrientation ?? _originYaw != null;
-    final progress = orientation
-        ? (_visited.length / minimumDirectionalSectors).clamp(0.0, 1.0)
-        : (_fallbackViewpoints.length / minimumFallbackViewpoints)
+    final horizontalRegions = _visited.map(_horizontalFamily).toSet();
+    final directionalProgress = minimumHorizontalRegions <= 0
+        ? 1.0
+        : (horizontalRegions.length / minimumHorizontalRegions).clamp(0.0, 1.0);
+    final visualProgress = minimumVisualViewpoints <= 0
+        ? 1.0
+        : (_fallbackViewpoints.length / minimumVisualViewpoints)
             .clamp(0.0, 1.0);
+    // Device orientation is helpful but not a completion dependency. Some
+    // phones start the final sweep already pointed at the floor, making a
+    // relative "look farther down" sector unreachable. Either the configured
+    // spatial regions or stable visual viewpoints now prove coverage.
+    final progress = orientation
+        ? math.max(directionalProgress, visualProgress)
+        : visualProgress;
     return RoomCoverageSnapshot(
       visited: Set.unmodifiable(_visited),
       coverage: progress,
-      nextRequired: orientation ? _nextRequired() : null,
+      nextRequired:
+          orientation && progress < 1 ? _nextRequired(horizontalRegions) : null,
       usesDeviceOrientation: orientation,
     );
   }
@@ -109,17 +121,25 @@ class RoomCoverageTracker {
         _ => RoomCoverageSector.floorCenter,
       };
 
-  RoomCoverageSector? _nextRequired() {
+  RoomCoverageSector _horizontalFamily(RoomCoverageSector sector) =>
+      switch (sector) {
+        RoomCoverageSector.left ||
+        RoomCoverageSector.floorLeft =>
+          RoomCoverageSector.left,
+        RoomCoverageSector.right ||
+        RoomCoverageSector.floorRight =>
+          RoomCoverageSector.right,
+        _ => RoomCoverageSector.center,
+      };
+
+  RoomCoverageSector? _nextRequired(Set<RoomCoverageSector> horizontalRegions) {
     const order = [
       RoomCoverageSector.left,
       RoomCoverageSector.center,
       RoomCoverageSector.right,
-      RoomCoverageSector.floorCenter,
-      RoomCoverageSector.floorLeft,
-      RoomCoverageSector.floorRight,
     ];
     for (final sector in order) {
-      if (!_visited.contains(sector)) return sector;
+      if (!horizontalRegions.contains(sector)) return sector;
     }
     return null;
   }

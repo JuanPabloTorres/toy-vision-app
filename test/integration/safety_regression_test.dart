@@ -81,6 +81,69 @@ void main() {
       expect(outcome.firstCompletedAt, isNotNull);
     });
 
+    test('B2: slight phone movement during pickup recovers and completes',
+        () async {
+      final frames = <ReplayFrame>[
+        for (var index = 0; index < 13; index++)
+          ReplayFrame(
+            milliseconds: index * 300,
+            background: const [150, 150, 150],
+            toy: true,
+            detect: true,
+            gyroscopeRadPerSecond: 0.01,
+            yawDegrees: 0,
+            pitchDegrees: 55,
+          ),
+        const ReplayFrame(
+          milliseconds: 3900,
+          background: [150, 150, 150],
+          toy: false,
+          detect: false,
+          gyroscopeRadPerSecond: 0.15,
+          yawDegrees: 3,
+          pitchDegrees: 55,
+        ),
+        for (var index = 0; index < 14; index++)
+          ReplayFrame(
+            milliseconds: 4200 + index * 300,
+            background: const [150, 150, 150],
+            toy: false,
+            detect: false,
+            gyroscopeRadPerSecond: 0.01,
+            yawDegrees: 3,
+            pitchDegrees: 55,
+          ),
+        for (var index = 0; index < 14; index++)
+          ReplayFrame(
+            milliseconds: 8400 + index * 300,
+            background: const [90, 120, 165],
+            toy: false,
+            detect: false,
+            gyroscopeRadPerSecond: 0.01,
+            yawDegrees: 35,
+            pitchDegrees: 55,
+          ),
+        for (var index = 0; index < 14; index++)
+          ReplayFrame(
+            milliseconds: 12600 + index * 300,
+            background: const [165, 110, 80],
+            toy: false,
+            detect: false,
+            gyroscopeRadPerSecond: 0.01,
+            yawDegrees: -30,
+            pitchDegrees: 55,
+          ),
+      ];
+      final outcome = await _run(frames, armCleanup: true);
+
+      expect(
+        outcome.collected,
+        1,
+        reason: outcome.lastRemovalDiagnostic,
+      );
+      expect(outcome.completed, 1);
+    });
+
     test('D: a moving unknown region cannot become a confirmed toy', () async {
       final frames = [
         for (var index = 0; index < 30; index++)
@@ -207,7 +270,9 @@ Future<_RunOutcome> _run(
           'motion=${perception.worldModel.scene.motion.toStringAsFixed(3)} '
           'anchor=${perception.worldModel.scene.similarityToStableAnchor.toStringAsFixed(3)} '
           'cameraLoss=${track?.lostDuringCameraMotion} '
+          'lossMotion=${track?.cameraMotionAtLoss.toStringAsFixed(3)} '
           'direct=${evidence.directPickupEvidence} '
+          'return=${evidence.returnToAnchorPickupEvidence} '
           'background=${evidence.backgroundRevealScore.toStringAsFixed(3)} '
           'local=${evidence.localSimilarity.toStringAsFixed(3)} '
           'reasons=${evidence.rejectionReasons.join(',')}';

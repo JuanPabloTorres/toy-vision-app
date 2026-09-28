@@ -43,6 +43,7 @@ class ToyTrack {
     this.missingSince,
     this.collectedAt,
     this.lostDuringCameraMotion = false,
+    this.cameraMotionAtLoss = 0,
   }) : visualEmbedding = List<double>.unmodifiable(visualEmbedding);
 
   factory ToyTrack.fromObservation(int id, ToyObservation observation) =>
@@ -85,6 +86,7 @@ class ToyTrack {
   final DateTime? missingSince;
   final DateTime? collectedAt;
   final bool lostDuringCameraMotion;
+  final double cameraMotionAtLoss;
 
   bool get isVisible =>
       presence == TrackPresence.visible || presence == TrackPresence.candidate;
@@ -123,6 +125,7 @@ class ToyTrack {
     bool clearMissingSince = false,
     DateTime? collectedAt,
     bool? lostDuringCameraMotion,
+    double? cameraMotionAtLoss,
   }) =>
       ToyTrack(
         id: id,
@@ -147,5 +150,6 @@ class ToyTrack {
         collectedAt: collectedAt ?? this.collectedAt,
         lostDuringCameraMotion:
             lostDuringCameraMotion ?? this.lostDuringCameraMotion,
+        cameraMotionAtLoss: cameraMotionAtLoss ?? this.cameraMotionAtLoss,
       );
 }

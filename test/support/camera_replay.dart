@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
+import 'package:toyvision_realtime/domain/scene/spatial_observation.dart';
 import 'package:toyvision_realtime/domain/toy/normalized_box.dart';
 import 'package:toyvision_realtime/perception/perception_models.dart';
 
@@ -107,6 +108,19 @@ class CameraReplay {
           : const [],
       nativeInferenceMs: 32,
       nativeFps: 8,
+      spatial: frame.gyroscopeRadPerSecond == null
+          ? const SpatialObservation.unavailable()
+          : SpatialObservation(
+              timestamp: origin.add(Duration(milliseconds: frame.milliseconds)),
+              motionAvailable: true,
+              orientationAvailable:
+                  frame.yawDegrees != null && frame.pitchDegrees != null,
+              gyroscopeRadPerSecond: frame.gyroscopeRadPerSecond!,
+              linearAccelerationMetersPerSecond2:
+                  frame.linearAccelerationMetersPerSecond2,
+              yawDegrees: frame.yawDegrees,
+              pitchDegrees: frame.pitchDegrees,
+            ),
     );
   }
 }
@@ -119,6 +133,10 @@ class ReplayFrame {
     required this.detect,
     this.toyX = 0.2,
     this.toyY = 0.3,
+    this.gyroscopeRadPerSecond,
+    this.linearAccelerationMetersPerSecond2 = 0,
+    this.yawDegrees,
+    this.pitchDegrees,
   });
 
   factory ReplayFrame.fromJson(Map<String, dynamic> json) => ReplayFrame(
@@ -130,6 +148,13 @@ class ReplayFrame {
         detect: json['detect']! as bool,
         toyX: (json['toyX'] as num?)?.toDouble() ?? 0.2,
         toyY: (json['toyY'] as num?)?.toDouble() ?? 0.3,
+        gyroscopeRadPerSecond:
+            (json['gyroscopeRadPerSecond'] as num?)?.toDouble(),
+        linearAccelerationMetersPerSecond2:
+            (json['linearAccelerationMetersPerSecond2'] as num?)?.toDouble() ??
+                0,
+        yawDegrees: (json['yawDegrees'] as num?)?.toDouble(),
+        pitchDegrees: (json['pitchDegrees'] as num?)?.toDouble(),
       );
 
   final int milliseconds;
@@ -138,4 +163,8 @@ class ReplayFrame {
   final bool detect;
   final double toyX;
   final double toyY;
+  final double? gyroscopeRadPerSecond;
+  final double linearAccelerationMetersPerSecond2;
+  final double? yawDegrees;
+  final double? pitchDegrees;
 }

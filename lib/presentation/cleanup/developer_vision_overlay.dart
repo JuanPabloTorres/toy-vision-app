@@ -109,7 +109,9 @@ class _DeveloperVisionPainter extends CustomPainter {
         'gyro:${evidence.deviceMotion.toStringAsFixed(2)} '
         'bg:${evidence.backgroundRevealScore.toStringAsFixed(2)} '
         'direct:${evidence.directPickupEvidence ? 'Y' : 'N'} '
+        'return:${evidence.returnToAnchorPickupEvidence ? 'Y' : 'N'} '
         'camLoss:${track.lostDuringCameraMotion ? 'Y' : 'N'} '
+        'lossMotion:${track.cameraMotionAtLoss.toStringAsFixed(2)} '
         'depth:${evidence.depthChangeScore?.toStringAsFixed(2) ?? '-'} '
         '${evidence.rejectionReasons.join('|')}',
       );
@@ -227,6 +229,7 @@ String buildDeveloperVisionSummary({
       'reacquired:${reappeared.isEmpty ? 'NO' : reappeared} '
       'transition:$transition\n'
       'ROOM coverage:${completion?.sceneCoverage.toStringAsFixed(2) ?? '-'} '
+      'stage:${completion?.verificationStage.name ?? '-'} '
       'stable:${completion?.sceneStable ?? '-'} '
       'tracking:${completion?.cameraTrackingGood ?? '-'} '
       'emptyMs:${completion?.noToyDuration.inMilliseconds ?? '-'}\n'
