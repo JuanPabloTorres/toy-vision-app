@@ -157,11 +157,16 @@ try {
     Write-Host ''
     Write-Host 'PHYSICAL ACCEPTANCE PROTOCOL'
     Write-Host '1. Open Cleanup and scan stable toys for at least 4 seconds.'
-    Write-Host '2. Pan away and return: no collection may occur.'
-    Write-Host '3. Occlude a toy with a hand and reveal it: identity must remain.'
-    Write-Host '4. Remove one toy while camera is stable: exactly one collection.'
-    Write-Host '5. Reintroduce it, exercise hard negatives, low light and motion blur.'
-    Write-Host '6. Remove remaining toys and reach Celebration once.'
+    Write-Host '2. Confirm gyro, acceleration and orientation update in Developer Vision Debug.'
+    Write-Host '3. Rotate about 70 degrees: the target must become temporarilyLost, never collected.'
+    Write-Host '4. Return to the toy after the rotation: the same identity must be reacquired.'
+    Write-Host '5. Occlude a toy with a hand and reveal it: identity must remain.'
+    Write-Host '6. Remove one toy from a stable view: background reveal must lead to exactly one collection.'
+    Write-Host '7. Confirm the next target appears automatically without a blocking Review screen.'
+    Write-Host '8. After the last pickup, sweep left, center, right and floor following the guidance.'
+    Write-Host '9. During that sweep, introduce a new stable toy: verification must return to cleaning.'
+    Write-Host '10. Remove it and repeat the complete empty-room sweep: Celebration must occur once.'
+    Write-Host '11. Exercise hard negatives, low light and motion blur without a false collection.'
     Read-Host 'Press Enter only after the complete protocol is finished'
 
     $camera = Read-Host 'Camera preview and live frame updates verified? (yes/no)'
@@ -170,6 +175,11 @@ try {
     $haptics = Read-Host 'Haptics felt correctly? (yes/no)'
     $rive = Read-Host 'Rive/Lottie rewards rendered correctly? (yes/no)'
     $tobi = Read-Host 'Tobi glTF loaded and animated correctly? (yes/no)'
+    $imu = Read-Host 'IMU debug values updated and high motion blocked collection? (yes/no)'
+    $pickup = Read-Host 'Stable real pickup showed background reveal and advanced once? (yes/no)'
+    $coverage = Read-Host 'Directional room coverage guidance completed all required sectors? (yes/no)'
+    $rediscovery = Read-Host 'A new toy during room verification returned the game to cleaning? (yes/no)'
+    $celebration = Read-Host 'A genuinely empty room emitted one completion and one celebration? (yes/no)'
 
     Stop-Job $monitorJob -ErrorAction SilentlyContinue
     Receive-Job $monitorJob -ErrorAction SilentlyContinue | Out-Null
@@ -192,6 +202,11 @@ try {
         haptics = $haptics
         riveLottie = $rive
         tobiGltf = $tobi
+        imuFusion = $imu
+        stablePickup = $pickup
+        directionalCoverage = $coverage
+        rediscoveryDuringVerification = $rediscovery
+        singleCelebration = $celebration
     }
     $visualChecks | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'manual_checks.json')
 

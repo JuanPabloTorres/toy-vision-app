@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../domain/scene/room_world_model.dart';
+import '../domain/scene/spatial_observation.dart';
 import '../domain/toy/normalized_box.dart';
 import '../domain/toy/toy_observation.dart';
 import 'tracking/track_associator.dart';
@@ -26,6 +27,7 @@ class CameraPerceptionFrame {
     required this.nativeInferenceMs,
     required this.nativeFps,
     this.detectorCoordinatesAreUpright = false,
+    this.spatial = const SpatialObservation.unavailable(),
   })  : encodedImage = Uint8List.fromList(encodedImage),
         detectorProposals =
             List<DetectorProposal>.unmodifiable(detectorProposals);
@@ -44,6 +46,7 @@ class CameraPerceptionFrame {
   /// The visual analyzer uses this marker to align the pixels before crops,
   /// tracking and preview projection consume the boxes.
   final bool detectorCoordinatesAreUpright;
+  final SpatialObservation spatial;
 }
 
 class VisualCandidate {
@@ -121,6 +124,11 @@ class DisappearanceEvidence {
     required this.stableSceneWindow,
     required this.interactionObserved,
     required this.reidentificationCandidate,
+    this.deviceMotion = 0,
+    this.backgroundRevealScore = 0,
+    this.depthChangeScore,
+    this.cameraTrackingGood = true,
+    this.corroboratingSignalCount = 0,
     required List<String> rejectionReasons,
     required this.confidence,
     required this.confirmed,
@@ -139,6 +147,11 @@ class DisappearanceEvidence {
   final bool stableSceneWindow;
   final bool interactionObserved;
   final bool reidentificationCandidate;
+  final double deviceMotion;
+  final double backgroundRevealScore;
+  final double? depthChangeScore;
+  final bool cameraTrackingGood;
+  final int corroboratingSignalCount;
   final List<String> rejectionReasons;
   final double confidence;
   final bool confirmed;

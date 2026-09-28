@@ -1,6 +1,6 @@
 # Toy Vision
 
-Versión actual: `2.2.0+5`. El flujo de ramas y versionado obligatorio está
+Versión actual: `2.3.0+6`. El flujo de ramas y versionado obligatorio está
 documentado en [`docs/development_workflow.md`](docs/development_workflow.md).
 
 Aplicación Flutter local-first que ayuda a un niño a recoger juguetes mediante
@@ -11,12 +11,14 @@ percepción híbrida on-device. El flujo infantil es deliberadamente corto:
 
 ```text
 CameraX + TFLite YOLO (propuestas, no verdad absoluta)
+  + IMU Android (giroscopio, aceleración y rotation vector)
   → frame adapter con píxeles reales
   → propuestas open-set por contraste/textura/geometría
   → embeddings visuales de escena y crops
   → fusión numérica de evidencia
   → tracking (IoU + centro + tamaño + cosine similarity)
   → estabilidad/oclusiones/movimiento de cámara
+  → fusión física + background reveal + cobertura direccional
   → verificación temporal de desaparición
   → RoomWorldModel
   → CleanupSessionService y eventos de dominio
@@ -84,3 +86,5 @@ política térmica/batería, integridad de assets y flujo UI. La validación fí
 en Galaxy S25 sigue siendo obligatoria antes de declarar release comercial.
 El protocolo reproducible, el esquema de anotación y los comandos de corpus
 están en [`docs/certification_harness.md`](docs/certification_harness.md).
+La arquitectura de fusión, sus fallbacks y el límite actual de ARCore están en
+[`docs/sensor_fusion_architecture.md`](docs/sensor_fusion_architecture.md).

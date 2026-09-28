@@ -11,6 +11,7 @@ import '../../application/feedback/audio_feedback_service.dart';
 import '../../infrastructure/camera/yolo_streaming_frame_adapter.dart';
 import '../../infrastructure/feedback/cleanup_feedback_coordinator.dart';
 import '../../infrastructure/performance/device_health_service.dart';
+import '../../infrastructure/sensors/device_motion_service.dart';
 import '../../infrastructure/tflite/yolo_model_config.dart';
 import '../../ui/app_assets.dart';
 import '../../ui/components/app_image.dart';
@@ -46,6 +47,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
   final YoloStreamingFrameAdapter _frameAdapter =
       const YoloStreamingFrameAdapter();
   final DeviceHealthService _deviceHealth = const AndroidDeviceHealthService();
+  final DeviceMotionService _deviceMotion = const AndroidDeviceMotionService();
   late final AudioFeedbackService _audio;
   Timer? _healthTimer;
   int _cameraEpoch = 0;
@@ -58,6 +60,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
     WidgetsBinding.instance.addObserver(this);
     _audio = ref.read(audioFeedbackServiceProvider);
     ref.read(cleanupFeedbackCoordinatorProvider);
+    unawaited(_deviceMotion.start());
     _pollDeviceHealth();
     _healthTimer = Timer.periodic(
       const Duration(seconds: 10),
@@ -69,6 +72,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _healthTimer?.cancel();
+    unawaited(_deviceMotion.stop());
     _stopAllAudio();
     super.dispose();
   }
@@ -76,6 +80,9 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
+      if (ref.read(cleanupControllerProvider).phase != CleanupPhase.completed) {
+        unawaited(_deviceMotion.start());
+      }
       ref.read(cleanupControllerProvider.notifier).resume();
       setState(() {
         _cameraEpoch += 1;
@@ -83,6 +90,7 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
       });
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      unawaited(_deviceMotion.stop());
       ref.read(cleanupControllerProvider.notifier).pause();
     }
   }
@@ -106,6 +114,13 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
         cleanup.phase == CleanupPhase.verifyingRoom ||
         cleanup.phase == CleanupPhase.paused;
     ref.listen<CleanupState>(cleanupControllerProvider, (previous, next) {
+      if (previous?.phase != next.phase) {
+        if (next.phase == CleanupPhase.completed) {
+          unawaited(_deviceMotion.stop());
+        } else if (previous?.phase == CleanupPhase.completed) {
+          unawaited(_deviceMotion.start());
+        }
+      }
       final target = next.metrics?.targetInferenceFps;
       if (target != null && target != _targetFps) {
         _targetFps = target;
@@ -177,7 +192,12 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
               ),
             if (visionMode == VisionDisplayMode.developerDebug &&
                 cleanup.latestPerception != null)
-              DeveloperVisionOverlay(result: cleanup.latestPerception!),
+              DeveloperVisionOverlay(
+                result: cleanup.latestPerception!,
+                phase: cleanup.phase,
+                activeToyId: cleanup.activeTargetTrackId,
+                completionEvidence: cleanup.completionEvidence,
+              ),
             _CleanupChrome(
               state: cleanup,
               onLeave: _leave,
@@ -203,10 +223,12 @@ class _CameraGameScreenState extends ConsumerState<CameraGameScreen>
         inferenceFrequency: targetFps,
       );
 
-  void _onStreamingData(Map<String, dynamic> payload) {
+  Future<void> _onStreamingData(Map<String, dynamic> payload) async {
     try {
       if (!_nativeOverlaysHidden) unawaited(_hideNativeOverlays());
-      final frame = _frameAdapter.adapt(payload);
+      final spatial = await _deviceMotion.readLatest();
+      if (!mounted) return;
+      final frame = _frameAdapter.adapt(payload, spatial: spatial);
       final controller = ref.read(cleanupControllerProvider.notifier);
       controller.markModelReady();
       unawaited(controller.ingest(frame));
@@ -525,7 +547,7 @@ class _VisionJourneyBar extends StatelessWidget {
     const steps = [
       (AppAssets.searchIcon, Icons.search_rounded, 'Encontrar'),
       (AppAssets.collectedIcon, Icons.inventory_2_rounded, 'Recoger'),
-      (AppAssets.emptyRoomIcon, Icons.auto_awesome_rounded, 'Revisar'),
+      (AppAssets.emptyRoomIcon, Icons.auto_awesome_rounded, 'Confirmar'),
     ];
     return ToyCard(
       color: Colors.white.withValues(alpha: 0.96),
@@ -687,10 +709,9 @@ class _VisionCoachCard extends StatelessWidget {
       case CleanupPhase.verifyingRoom:
         assetPath = AppAssets.emptyRoomIcon;
         fallbackIcon = Icons.auto_awesome_rounded;
-        title = 'Revisa todo el cuarto';
-        body =
-            '${state.collected} ${state.collected == 1 ? 'juguete guardado' : 'juguetes guardados'}. '
-            'Muévete despacio por cada rincón para confirmar que quedó limpio.';
+        title = '¡Una última mirada!';
+        body = state.completionEvidence?.guidance ??
+            'Mueve la cámara despacio para confirmar que no queda ningún juguete.';
         accent = AppColors.gamePurple;
         progress = state.completionEvidence?.sceneCoverage ?? 0;
       case CleanupPhase.cleaning:

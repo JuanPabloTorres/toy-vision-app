@@ -1,4 +1,5 @@
 import 'scene_state.dart';
+import 'spatial_observation.dart';
 
 class SceneDescriptor {
   SceneDescriptor({
@@ -12,6 +13,7 @@ class SceneDescriptor {
     required this.timestamp,
     this.stableFrameCount = 0,
     this.similarityToStableAnchor = 0,
+    this.spatial = const SpatialObservation.unavailable(),
   }) : embedding = List<double>.unmodifiable(embedding);
 
   final List<double> embedding;
@@ -24,7 +26,10 @@ class SceneDescriptor {
   final DateTime timestamp;
   final int stableFrameCount;
   final double similarityToStableAnchor;
+  final SpatialObservation spatial;
 
   bool get canVerifyDisappearance =>
-      state == SceneState.stable && stableFrameCount >= 4;
+      state == SceneState.stable &&
+      stableFrameCount >= 4 &&
+      spatial.cameraTrackingGood;
 }
