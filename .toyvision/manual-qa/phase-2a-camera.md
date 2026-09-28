@@ -1,5 +1,9 @@
 # Manual QA Checklist — Phase 2a (Real Camera Preview, Mock Detections)
 
+> Historical checklist for a retired prototype. It is not the current Kid
+> Game product contract and must not be used to restore child-facing overlays
+> or counters.
+
 Real `camera` plugin behavior cannot be verified by headless unit tests, so this
 checklist must be run on a physical device or emulator with a working camera.
 Owned by the QA Validation Agent.

@@ -1,72 +1,63 @@
 name: toyvision_realtime
-description: ToyVision Real-Time — mobile-first AI app that detects, tracks, and counts toys live.
+description: Tobi Ordena — juego infantil que convierte recoger juguetes en una aventura.
 publish_to: "none"
-version: 2.0.0+3
+version: 2.1.0+4
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
-  flutter: ">=3.22.0"
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.5.1
-  phosphor_flutter: ^2.1.0
-  # Phase 6.0 (Toy Cleanup YOLO): single on-device detector. The plugin
-  # owns the camera + the inference loop natively (Android: TFLite; iOS:
-  # CoreML). The default `yolo26n` model is downloaded on first run
-  # (~6 MB) and cached locally; no per-frame network use.
+  # On-device detector and CameraX inference surface. The required model is
+  # bundled; production never downloads or swaps to a network fallback.
   # License: AGPL-3.0. Personal/prototype use only — commercial closed
   # distribution requires an Ultralytics Enterprise license.
-  ultralytics_yolo: ^0.4.2
-  # Used for runtime camera-permission requests if YOLOView ever needs a
-  # custom pre-permission UI. Currently the system prompt suffices.
+  ultralytics_yolo: 0.4.3
+  # Runtime camera permission support for the native inference surface.
   permission_handler: ^12.0.3
-  # Phase 6.1 (Misión Recoge Juguetes): Lottie animations for celebration,
-  # loading, and scanning states. The widgets gracefully fall back to
-  # Material icons when the .json asset is missing, so the app stays
-  # functional even before the asset files are added to assets/lottie/.
+  # Local event-driven presentation feedback.
   lottie: ^3.3.3
-  # Phase 8: short celebration sound played once when a mission completes.
-  # Asset-only, offline; the service no-ops gracefully if the file is missing.
   audioplayers: ^6.1.0
-  # Phase 9: real app version / build number for the Parents diagnostics.
   package_info_plus: ^8.0.0
-  # Phase 9: persist the sound on/off preference across launches.
   shared_preferences: ^2.3.0
+  path_provider: ^2.1.5
+  phosphor_icons: ^3.0.1
+  # Pixel-bearing camera frames are decoded locally for scene descriptors,
+  # crop embeddings, and open-set region proposals. No frame leaves device.
+  image: ^4.5.4
+  # Event-driven vector feedback and a local glTF runtime for Tobi.
+  rive: ^0.14.11
+  flutter_3d_controller: ^2.3.0
+  sqflite: ^2.4.4
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.3
+  sqflite_common_ffi: ^2.4.3
 
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icons/toy_vision_app_icon.png"
-  adaptive_icon_background: "#EAFBFF"
-  adaptive_icon_foreground: "assets/icons/toy_vision_app_icon.png"
-  # Future-ready: switch to transparent foreground asset when available.
-  # adaptive_icon_foreground: "assets/icons/toy_vision_app_icon_foreground.png"
+  adaptive_icon_background: "#1479FF"
+  adaptive_icon_foreground: "assets/icons/tobi_ordena_app_icon_foreground.png"
+  adaptive_icon_foreground_inset: 18
   remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
-  # Phase 6.1: Lottie .json files for the game animations. Listing the
-  # directory (not individual files) lets us drop in or remove .json files
-  # without touching pubspec. LottieStatusView falls back gracefully when
-  # an expected asset is missing, so the app still runs with an empty
-  # directory.
   assets:
     - assets/background/
     - assets/icons/
     - assets/images/
     - assets/mascots/
     - assets/lottie/
-    # Phase 8: mission-complete celebration sound (mission_complete_reward.wav).
+    - assets/rive/
     - assets/audio/
-    # Phase 6.6: the custom toy model goes here. Drop the exported
-    # `toys.tflite` (see tools/toy_model_export/) into this folder and
-    # YoloModelConfig.resolve() picks it up automatically on next launch.
     - assets/models/

@@ -1,69 +1,43 @@
-# Toy model export — YOLO-World → TFLite
+# Toy detector export tooling
 
-This produces `assets/models/toys.tflite`, a detector with a **toy
-vocabulary** (dolls, blocks, ring-stackers, plush, toy vehicles…) instead
-of the generic COCO-80 classes that `yolo26n` ships with. Once the file is
-in place, Toy Vision loads it automatically — no code change.
+This directory is development tooling and is not distributed as executable
+Python code inside the mobile application. It exports the current
+YOLOv8s-world model to a local TFLite detector with a fixed 20-class toy
+vocabulary.
 
-## Why
+The vocabulary is detector training input. Runtime fusion never uses these
+strings to decide whether an observation is a toy.
 
-`yolo26n` (the default) only knows COCO-80, which has almost no toys
-(`teddy bear`, `sports ball` and that's about it). YOLO-World is
-**open-vocabulary**: you give it text prompts and it detects those. We
-bake a fixed toy prompt list into the export so the phone runs a normal,
-fast TFLite detector — no prompts at runtime, fully offline.
+## Reproducible environment
 
-## Run it once (Windows PowerShell)
-
-> **Toolchain matters.** The TFLite export path (`onnx2tf`) does **not** work
-> on Python 3.13 (only TF 2.21 has 3.13 wheels, which onnx2tf can't use). Use
-> **Python 3.12 + TensorFlow 2.19 + tf_keras** — the known-good combo:
+Use Python 3.12 and the exact versions in `requirements.txt`:
 
 ```powershell
 cd tools/toy_model_export
 py -3.12 -m venv .venv312
 .\.venv312\Scripts\python.exe -m pip install --upgrade pip
-.\.venv312\Scripts\python.exe -m pip install "ultralytics>=8.3.0" "tensorflow==2.19.0" "tf_keras==2.19.0" onnx onnxruntime
+.\.venv312\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv312\Scripts\python.exe export_toy_model.py
 ```
 
-(`ultralytics` auto-installs `onnx2tf` / `onnxslim` / `CLIP` during export.)
+The checked-in artifact was exported with Ultralytics 8.4.60, task `detect`,
+input 480×480, float32, and no built-in NMS. Its provenance is recorded in
+`yolov8s-world_saved_model/metadata.yaml` and
+`docs/ultralytics_dependency_audit.md`.
 
-The script writes `../../assets/models/toys.tflite` (~60 MB). Then back in
-the repo root:
+Exact checked-in artifact:
 
-```powershell
-flutter pub get
-flutter run        # the Parent panel will show "Tipo: Modelo de juguetes"
+```text
+assets/models/toys.tflite
+SHA-256 B21CB8ED24EADBCE951C462E126A65D5D328EA0D8C27DEFF68C17AC38B018A91
 ```
 
-## How the app picks it up
+Export may still vary across platforms because upstream conversion tools are
+not guaranteed bit-for-bit deterministic. Any replacement artifact requires a
+new hash, metadata record, corpus evaluation, and physical-device run.
 
-`YoloModelConfig.resolve()` probes the asset bundle for
-`assets/models/toys.tflite`. If present → uses it (confidence 0.30). If
-absent → falls back to `yolo26n`. The Mission screen awaits this before
-mounting the camera; the Parent panel shows which model is live.
+## License boundary
 
-## Keeping labels in sync
-
-The export's `PROMPTS` list (in `export_toy_model.py`) **must match** the
-keys in `lib/detection/yolo/yolo_detection_mapper.dart` →
-`toyModelLabels`. Those prompt strings become the model's class names; the
-mapper translates them to the app's registry labels. If you add a prompt,
-add the matching mapper entry (and a registry category if it's new).
-
-## Tuning
-
-- `IMG_SIZE` is **480** (required — see note below). 640 fails to export
-  (YOLO-World's `adaptive_max_pool2d(→3)` needs a feature map divisible by 3;
-  480→15×15 works, 640→20×20 fails in ONNX).
-- Edit `PROMPTS` to match the toys in your home. More specific prompts
-  ("wooden blocks", "rubber duck") often detect better than generic ones.
-- If detection is weak, lower `confidenceThreshold` in
-  `YoloModelConfig.resolve()` further (already 0.30).
-
-## License
-
-YOLO-World / Ultralytics is **AGPL-3.0**. OK for a personal prototype.
-A closed commercial release needs an Ultralytics Enterprise license or a
-permissively-licensed detector.
+The Python package, source weights, exported artifact, and Flutter runtime are
+Ultralytics-derived and marked AGPL-3.0. They cannot be assumed suitable for a
+closed commercial distribution. See `docs/ultralytics_dependency_audit.md`.

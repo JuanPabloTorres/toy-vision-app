@@ -12,11 +12,10 @@ class AppButtonStyles {
     Color background = AppColors.primaryBlue,
     Color foreground = Colors.white,
     double radius = AppRadii.xl,
-    EdgeInsetsGeometry padding =
-        const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-          vertical: AppSpacing.md,
-        ),
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.xl,
+      vertical: AppSpacing.md,
+    ),
   }) {
     return ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith((states) {

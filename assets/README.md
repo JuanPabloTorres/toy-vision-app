@@ -11,7 +11,7 @@ nicer once these are filled in.
 | Folder | What goes here |
 |--------|----------------|
 | `assets/background/` | Full-bleed scene backgrounds |
-| `assets/icons/` | Small single-purpose PNG icons |
+| `assets/icons/` | Original transparent Toy Vision UI icons |
 | `assets/images/` | Illustrations and props |
 | `assets/mascots/` | Tobi the robot in different poses |
 | `assets/lottie/` | Animated `.json` (loading, scanning, celebration) |
@@ -36,13 +36,14 @@ nicer once these are filled in.
 - `mission_card_illustration.png` — Generic mission art
 
 ### icons/
-- `icon_star.png`, `icon_calendar.png`, `icon_camera.png`,
-  `icon_rocket.png`, `icon_trophy.png`, `icon_play.png`,
-  `icon_pause.png`, `icon_stop.png`, `icon_home.png`,
-  `icon_history.png`, `icon_parents.png`
-- Note: the bottom-nav and buttons currently use **Material icons**
-  (rounded variants) so they look consistent before the PNG icon set
-  lands. Swap to PNGs by passing an `assetPath` to `AppImage`.
+- The original kit contains 34 production icons across GAME, SYSTEM, PROGRESS
+  and VISION. See `icons/GENERATED_ASSETS.md` for the complete inventory and
+  reproducible subject prompts. They share one palette, material, camera angle
+  and lighting model and are optimized to 512 px with transparent alpha.
+- Material icons are retained only as runtime fallbacks and for secondary
+  controls that do not define the Toy Vision brand.
+- Every production asset must be registered in `ASSET_MANIFEST.yaml` before it
+  can be referenced from Flutter.
 
 ### lottie/
 - `mission_loading.json` — model loading
@@ -52,5 +53,6 @@ nicer once these are filled in.
 
 ## License note
 
-Use assets licensed for redistribution (CC0 / MIT / purchased). Keep
-attribution here when adding files.
+Use assets licensed for redistribution (original output / CC0 / MIT /
+purchased). Record source, author, license, commercial use, attribution and
+original URL in `ASSET_MANIFEST.yaml` before adding a Flutter reference.

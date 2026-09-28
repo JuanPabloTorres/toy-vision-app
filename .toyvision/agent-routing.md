@@ -12,7 +12,7 @@ file in [agents/](agents/) defines its rules and what it must reject.
 | Camera, frame stream, inference throttling, live loop, performance | [flutter-realtime-agent](agents/flutter-realtime-agent.md) |
 | Visual consistency, interaction, screen states, accessibility | [ui-ux-agent](agents/ui-ux-agent.md) |
 | Reusable components, design tokens, shared patterns | [component-system-agent](agents/component-system-agent.md) |
-| Category validation, confidence rules, ignored objects, counting, duplicates | [business-logic-agent](agents/business-logic-agent.md) |
+| Validation, snapshot quality, progress, energy, completion invariants | [business-logic-agent](agents/business-logic-agent.md) |
 | Dataset, model selection, training, export, evaluation, versioning | [ai-vision-model-agent](agents/ai-vision-model-agent.md) |
 | Unit tests, product scenarios, performance + privacy validation | [qa-validation-agent](agents/qa-validation-agent.md) |
 | Final review: maintainability, boundaries, naming, duplication, safety | [code-review-agent](agents/code-review-agent.md) |

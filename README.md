@@ -1,130 +1,86 @@
-# ToyVision — Toy Cleanup YOLO
+# Toy Vision
 
-## Versionado
+Versión actual: `2.1.0+4`. El flujo de ramas y versionado obligatorio está
+documentado en [`docs/development_workflow.md`](docs/development_workflow.md).
 
-- Versión actual: `1.0.0`
-- Control de versión: SemVer en `pubspec.yaml` con formato `MAJOR.MINOR.PATCH+BUILD`.
-  - `MAJOR.MINOR.PATCH` = versión de producto (ejemplo: `1.0.0`).
-  - `BUILD` = número interno de compilación para stores (ejemplo: `+1`, `+2`, ...).
+Aplicación Flutter local-first que ayuda a un niño a recoger juguetes mediante
+percepción híbrida on-device. El flujo infantil es deliberadamente corto:
+`Home → Scan/Cleanup → Celebration`; Settings queda separado para adultos.
 
-App móvil Flutter que ayuda a un niño a recoger sus juguetes. Detecta objetos
-del piso en vivo con YOLO on-device, los cuenta, y muestra un mensaje claro:
-*"Veo 4 juguetes. Vamos uno por uno."* → *"Muy bien. Ahora quedan 3."* →
-*"¡Excelente! Ya no veo juguetes en el piso."*
-
-**Local-first, privacy-first**: la inferencia corre 100% en el teléfono.
-Ningún frame se sube a un servidor; no hay backend.
-
-## Arquitectura (Phase 6.0)
+## Pipeline
 
 ```text
-Flutter app (lib/)
-  └── ToyCleanupCameraScreen
-        └── YOLOView (ultralytics_yolo plugin)
-              ├── owns camera nativa + inferencia + overlay de cajas
-              └── onResult → ToyCleanupController
-                    └── YoloDetectionMapper (COCO → registry, conservador)
-                          └── ToyDetectionRules (confidence / box gates)
-                                └── ToyTrackingEngine (IoU, identidad cross-frame)
-                                      └── ToyCountingService (min 3 frames estable)
-                                            └── CleanupGuidanceService (copy Mateo)
-                                                  └── LiveDetectionState → UI
+CameraX + TFLite YOLO (propuestas, no verdad absoluta)
+  → frame adapter con píxeles reales
+  → propuestas open-set por contraste/textura/geometría
+  → embeddings visuales de escena y crops
+  → fusión numérica de evidencia
+  → tracking (IoU + centro + tamaño + cosine similarity)
+  → estabilidad/oclusiones/movimiento de cámara
+  → verificación temporal de desaparición
+  → RoomWorldModel
+  → CleanupSessionService y eventos de dominio
+  → caso de uso de finalización + transacción SQLite
+  → UI, Tobi 3D, Rive, Lottie y audio después del commit
 ```
 
-El plugin oficial de Ultralytics envuelve la cámara nativa + el runtime YOLO
-(TFLite en Android, CoreML en iOS). El modelo por defecto es `yolo26n` (COCO
-80 clases, ~6 MB); se descarga la **primera vez** que se abre la app y
-queda cacheado para siempre.
+Las etiquetas de YOLO se conservan únicamente como diagnóstico. Ninguna
+decisión de aceptación, tracking, recogida o finalización usa nombres,
+keywords, regex o listas de clases.
 
-## Vocabulario (COCO 80 → juguete)
+## Capas
 
-El modelo `yolo26n` no fue entrenado en juguetes específicos; conoce las 80
-categorías COCO. El **mapper** filtra y reinterpreta de forma conservadora:
+| Ruta | Responsabilidad |
+|---|---|
+| `lib/domain/` | Entidades y reglas puras de escena, juguetes y cleanup |
+| `lib/perception/` | embeddings, propuestas, fusión, tracking y desaparición |
+| `lib/application/` | casos de uso, estado de sesión y bus de eventos |
+| `lib/infrastructure/` | cámara/YOLO, TFLite, audio, persistencia y salud del dispositivo |
+| `lib/presentation/` | Home, Scan/Cleanup, Celebration, Settings y feedback visual |
+| `lib/core/` | matemática y política adaptativa compartidas |
 
-| COCO label | Mapped registry | Comportamiento |
-|---|---|---|
-| `teddy bear` | `stuffed_animal` | Cuenta automático (Peluche) |
-| `sports ball` | `ball` | Cuenta automático (Pelota) |
-| `car` / `truck` / `train` | `toy_car` / `toy_truck` / `toy_train` | Cuenta (asumimos miniatura en cuarto de niño) |
-| `airplane` / `boat` / `bicycle` / `motorcycle` / `bus` | `toy_vehicle` | Cuenta (vehículo de juguete) |
-| `kite` / `frisbee` / `skateboard` | `toy_outdoor` | Cuenta (con confidence más baja) |
-| `book` | `book` | Cuenta (puede ser libro o juguete) |
-| `backpack` / `suitcase` / `scissors` | `object` | Cuenta (revisar manualmente) |
-| `person`, `chair`, `couch`, `tv`, etc. | — | **Descartado en el mapper** (nunca llega al pipeline) |
-| `dog`, `cat`, `bird`, etc. | — | Descartado (animales reales) |
-| Cualquier otro label COCO | — | Descartado |
+La regla de dependencias objetivo y la clasificación de la migración están en
+[`docs/sow_architecture_audit.md`](docs/sow_architecture_audit.md). La evidencia
+de implementación y los límites verificados están en
+[`docs/sow_implementation_evidence.md`](docs/sow_implementation_evidence.md).
 
-**Limitación conocida**: COCO no tiene `doll`, `lego`, `action figure`,
-`puzzle`, `board game`. Esos juguetes hoy no se detectan. El plan a futuro
-(Phase 7) es bundlear un `.tflite` específico de juguetes (Roboflow o
-fine-tune propio); el mapper está diseñado para que ese cambio sea aislado.
+## Operación local
 
-## Privacidad
-
-- Inferencia **100% en el dispositivo**. El plugin lee frames de cámara,
-  los pasa al runtime nativo, dibuja cajas y los descarta. Nada se escribe a
-  disco.
-- Solo permiso `CAMERA` + `INTERNET` (este último únicamente para descargar
-  el modelo la primera vez ~6 MB).
-- Sin audio, sin reconocimiento facial, sin person-ID, sin analytics, sin
-  cuenta de usuario.
-- El historial de scans (`SavedScanSummary`) guarda solo conteos y
-  timestamps — nunca imágenes.
-
-## Empezar
+El detector requerido está incluido en `assets/models/toys.tflite`; no existe
+descarga ni fallback remoto. Android solicita `CAMERA` para la función visible
+y declara `INTERNET` únicamente porque el visor 3D sirve el glTF incluido sobre
+loopback (`127.0.0.1`); no solicita audio ni almacenamiento. Los frames,
+embeddings y cajas no se persisten; SQLite guarda únicamente progreso seguro
+(sesiones, habitaciones, ledger de estrellas, rachas y logros), mientras
+SharedPreferences queda limitado a ajustes de UI. La única excepción es una build de
+certificación que exige habilitar explícitamente captura y, por separado,
+retención temporal de píxeles.
 
 ```powershell
-flutter pub get
-flutter analyze
-flutter test
-flutter run        # con un Android o iOS conectado
+C:\DevTools\flutter\bin\flutter.bat pub get
+C:\DevTools\flutter\bin\flutter.bat analyze
+C:\DevTools\flutter\bin\flutter.bat test
+
+$env:Path = 'C:\DevTools\flutter\bin;C:\DevTools\flutter\bin\cache\dart-sdk\bin;' + $env:Path
+C:\DevTools\flutter\bin\flutter.bat build apk --release
 ```
 
-## Licencias
+Rive Native necesita que `dart` esté disponible en `PATH` durante la tarea
+Gradle de setup.
 
-| Componente | Licencia | Notas |
-|---|---|---|
-| Este repo | Privado / personal | No publicado |
-| `ultralytics_yolo` plugin | **AGPL-3.0** | OK para prototipo personal |
-| Modelo `yolo26n` (Ultralytics) | **AGPL-3.0** | OK para prototipo personal |
-| Flutter / Riverpod / permission_handler | BSD / MIT | Sin restricciones |
+## Privacidad y licencias
 
-> **Importante**: la AGPL-3.0 de Ultralytics aplica al plugin y al modelo
-> entrenado. Para distribución comercial cerrada o publicación pública es
-> necesario contratar una **Ultralytics Enterprise License**, o reemplazar
-> el detector por una alternativa con licencia más permisiva (Apache,
-> MIT). El uso actual — prototipo personal local, sin distribución — no
-> requiere ninguna acción.
+- Inferencia y feedback funcionan sin backend ni permiso de Internet.
+- No se guarda imagen, audio, identidad personal ni embedding.
+- El plugin/modelo Ultralytics usado por este repositorio está sujeto a AGPL;
+  una distribución comercial cerrada requiere licencia Enterprise o sustituir
+  ese detector por una alternativa compatible.
 
-## Trabajar en este repo
+## Validación
 
-- [CLAUDE.md](CLAUDE.md) — instrucciones para Claude Code (entry point).
-- [.toyvision/](.toyvision/) — gobernanza: principios de arquitectura,
-  agentes, skills, manual-QA.
-- [.toyvision/archive/](.toyvision/archive/) — código fuera de runtime
-  (TFLite, ML Kit, servidor Python). Preservado por historia, no
-  compilado.
-
-## Estructura
-
-| Path | Propósito |
-|---|---|
-| `lib/main.dart` | Entry: `runApp(ProviderScope(ToyVisionApp))` |
-| `lib/app/` | MaterialApp + tema dark + router |
-| `lib/camera/screens/toy_cleanup_camera_screen.dart` | Único screen vivo: YOLOView + UI |
-| `lib/camera/controllers/toy_cleanup_controller.dart` | Orquestador del pipeline |
-| `lib/detection/yolo/` | Config del modelo + mapper COCO→registry |
-| `lib/business/` | Reglas, registry, counting, **guidance**, review |
-| `lib/tracking/` | IoU + identidad cross-frame |
-| `lib/ui/` | Componentes, panels, overlays, screens |
-| `test/` | Unit + widget + scenario (122 tests) |
-
-## Notas técnicas
-
-- **`minSdk = 24`** en Android (requisito de `ultralytics_yolo` v0.4.2 +
-  `permission_handler` v12).
-- El plugin maneja la rotación de cámara internamente; usamos
-  `result.normalizedBox` directo (sin conversión manual).
-- `YOLOView` dibuja su propio overlay de cajas nativamente — por eso el
-  archivo `DetectionOverlayPainter` queda dormido (no se monta). Se
-  reactiva cuando tengamos UI custom de coloreado por status de review.
+Los tests incluyen replay de cámara con movimiento, reaparición, desaparición,
+open-set sin cajas YOLO, prevención de doble conteo, persistencia privada,
+política térmica/batería, integridad de assets y flujo UI. La validación física
+en Galaxy S25 sigue siendo obligatoria antes de declarar release comercial.
+El protocolo reproducible, el esquema de anotación y los comandos de corpus
+están en [`docs/certification_harness.md`](docs/certification_harness.md).

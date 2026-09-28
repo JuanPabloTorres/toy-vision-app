@@ -1,56 +1,26 @@
-# Testing Strategy — ToyVision Real-Time
+# Testing Strategy
 
-Before connecting a real model, the system must pass mock-detection tests. Logic is built
-to be testable with deterministic fake detections (`lib/testing/`).
+## Required domain coverage
 
-## Required unit tests
+- temporal evidence creates snapshots only after stability;
+- one-frame noise is ignored and brief dropout is tolerated;
+- initial snapshots remain immutable;
+- technical progress cannot become negative;
+- visible energy never decreases;
+- reward events and milestones are idempotent;
+- full energy enters final checking, not completion;
+- one zero snapshot cannot finish;
+- unstable scenes cannot create a completion candidate;
+- confirmation is valid only from `completionCandidate`;
+- restart clears snapshots, progress, and reward ledger.
 
-- IoU calculation.
-- category validation.
-- confidence validation.
-- bounding box validation.
-- duplicate matching.
-- stability counting.
-- missing-frame behavior.
-- reset behavior.
+## UI and storage coverage
 
-## Required product (scenario) tests
+- Tobi and one primary action dominate Kid Mode;
+- no technical detector or selected-object UI leaks into Kid Mode;
+- reduced motion, small screens, and touch targets remain safe;
+- persisted records contain only game estimates, timestamps, and flags;
+- current-schema history survives restart and reset works.
 
-Driven by `scenario_builders.dart` over `MockToyDetector`:
-
-- one toy visible for several seconds;
-- same toy across many frames;
-- multiple toys visible;
-- toy disappears briefly then returns;
-- non-toy object appears;
-- person appears;
-- camera moves quickly;
-- low-light simulation;
-- no toys visible;
-- pause/resume;
-- reset;
-- model failure.
-
-## Acceptance criteria
-
-- One toy is counted exactly once.
-- The same toy is not counted repeatedly.
-- Non-toys are ignored.
-- People are ignored.
-- Count does not explode with camera movement.
-- The app remains responsive.
-- Video is not saved by default.
-
-## Testing approach
-
-- Business logic, tracking, and counting are **pure and unit-testable** — no camera or UI
-  required.
-- The detection engine is swapped via the Strategy pattern; tests use `MockToyDetector`
-  and crafted scenarios, never the real model.
-- A feature is not done until its unit and relevant product tests exist and pass (see
-  [project-operating-system.md](project-operating-system.md) Definition of Done).
-
-## Ownership
-
-Owned by the QA Validation Agent. Guardrail:
-[skills/preserve-testing-discipline.md](skills/preserve-testing-discipline.md).
+Run focused tests while editing, then `flutter analyze` and the full
+`flutter test` suite. Device certification uses the exact newly hashed APK.

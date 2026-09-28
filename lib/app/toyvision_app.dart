@@ -9,7 +9,7 @@ class ToyVisionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Toy Vision',
+      title: 'Tobi Ordena',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       initialRoute: AppRoutes.splash,

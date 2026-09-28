@@ -1,29 +1,11 @@
-# Skill: preserve-realtime-performance
+# Preserve Real-Time Performance
 
-## Purpose
-Ensure frame processing never overloads the device or blocks the UI.
+When editing camera or observation flow:
 
-## When to use
-Any time you touch the camera loop, frame processing, inference scheduling, or the
-overlay.
-
-## Required rules
-- Process selected frames only; honor `targetInferenceFps`
-  ([realtime-detection-flow.md](../realtime-detection-flow.md)).
-- Skip frames while inference is running; prevent concurrent inference.
-- Keep the overlay lightweight — no heavy work in `paint()`.
-- Dispose camera resources on exit/pause.
-- Never call the backend in the live loop.
-
-## Forbidden patterns
-- Inference on every frame.
-- Overlapping/concurrent inference.
-- Blocking the preview while processing.
-- Network calls in the detection loop.
-- Leaking camera controllers.
-
-## Acceptance criteria
-- Inference runs at the configured rate, one at a time.
-- The preview stays responsive under load.
-- Camera resources are released correctly.
-- The live loop makes no network calls.
+- avoid allocation-heavy transforms and UI work per result callback;
+- never add network or storage writes per frame;
+- reuse one tracker, scene-quality service, and snapshot builder per session;
+- build snapshots on configured wall-clock windows;
+- keep native overlays disabled and diagnostics debug-only;
+- preserve camera lifecycle cleanup and GPU configuration;
+- validate responsiveness on the physical device after automated gates.
