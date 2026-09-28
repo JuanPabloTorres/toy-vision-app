@@ -60,7 +60,7 @@ coverage sectors, background-reveal score, optional depth score and every
 | Alternate-device smoke/camera/model | PASS on SM-S942U; this does not satisfy the S25 gate |
 | 2.4.2 integrated camera/model smoke | PASS on profile SM-S942U before the final presentation-only guard and 2.4.3 voice integration: 57 metadata-only frames / 16.09 s, 0 collections and 0 completions; no controlled pickup was executed |
 | 2.4.4 diagnostic reproduction | PASS_DIAGNOSTIC on SM-S942U: 438 metadata-only frames / 109.60 s; the mission inventory grew from 3 to 5 during the pan, with 7 missing tracks, 0 collections and 0 completions. This candidate preceded the final inventory-admission fix |
-| Final 2.4.4 artifacts | PASS_BUILD: profile SHA-256 `C6EE576AF65408C8FC4FD9384B59DBB9FA6FC7F6B95C3478D497BE868E35E46D`; release SHA-256 `AF3704EC6605824F9AD44D41902A589D04B545BB517C860EEF21DCC57359B6F9`; both report 2.4.4 (11) |
+| Final 2.4.4 artifacts | PASS_BUILD: profile SHA-256 `46C24B1C2911109280E511F93ADEA6190BC52C06803AC1E5CE6409C0B08FEB79`; release SHA-256 `DD77393F6F65E484BE69C1CCBCA42E4A1EE8A27E835755C7B1C7F8E566390F94`; both report 2.4.4 (11) |
 | Final 2.4.4 profile installation/camera | NOT_EXECUTED: the exact final implementation has not yet been exercised on camera |
 | Diagnostic overlay | PASS on the 2.4.1 pre-integration profile; Kid Mode precedence is covered in the 2.4.4 code and final release binary inspection must exclude both diagnostic strings |
 | Pan/scene-anchor safety | PARTIAL: no false collection occurred, but the pre-fix 2.4.4 trace reproduced inventory inflation during pan; automated regression covers the final correction, physical confirmation remains pending |

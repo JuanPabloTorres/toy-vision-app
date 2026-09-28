@@ -23,7 +23,7 @@ void main() {
       ),
       isEmpty,
     );
-    expect(tracker.pendingCount, 0);
+    expect(tracker.pendingCount, 1);
 
     expect(
       tracker.observe(
@@ -67,6 +67,32 @@ void main() {
     expect(admitted, isEmpty);
     expect(tracker.pendingCount, 0);
   });
+
+  test('fresh detector-confirmed identity blocks clean before admission', () {
+    final now = DateTime.utc(2026);
+    final tracker = NewToyAdmissionTracker();
+
+    final admitted = tracker.observe(
+      _world(now, visibleFrames: 1),
+      knownTrackIds: {1},
+    );
+
+    expect(admitted, isEmpty);
+    expect(tracker.pendingCount, 1);
+  });
+
+  test('confirmed identity below admission confidence still blocks clean', () {
+    final now = DateTime.utc(2026);
+    final tracker = NewToyAdmissionTracker();
+
+    final admitted = tracker.observe(
+      _world(now, confidence: 0.72),
+      knownTrackIds: {1},
+    );
+
+    expect(admitted, isEmpty);
+    expect(tracker.pendingCount, 1);
+  });
 }
 
 RoomWorldModel _world(
@@ -74,9 +100,18 @@ RoomWorldModel _world(
   SceneState state = SceneState.stable,
   int stableFrames = 8,
   ObservationSource source = ObservationSource.detector,
+  int visibleFrames = 12,
+  double confidence = 0.9,
 }) =>
     RoomWorldModel(
-      activeTracks: {2: _track(at, source)},
+      activeTracks: {
+        2: _track(
+          at,
+          source,
+          visibleFrames: visibleFrames,
+          confidence: confidence,
+        ),
+      },
       missingTracks: const {},
       collectedTracks: const {},
       sceneState: state,
@@ -95,15 +130,21 @@ RoomWorldModel _world(
       updatedAt: at,
     );
 
-ToyTrack _track(DateTime at, ObservationSource source) => ToyTrack(
+ToyTrack _track(
+  DateTime at,
+  ObservationSource source, {
+  required int visibleFrames,
+  required double confidence,
+}) =>
+    ToyTrack(
       id: 2,
       lastBounds: const NormalizedBox(x: 0.5, y: 0.5, width: 0.2, height: 0.2),
       initialBounds:
           const NormalizedBox(x: 0.5, y: 0.5, width: 0.2, height: 0.2),
       visualEmbedding: const [0, 1],
-      visibleFrames: 12,
+      visibleFrames: visibleFrames,
       missingFrames: 0,
-      confidence: 0.9,
+      confidence: confidence,
       presence: TrackPresence.visible,
       firstSeenAt: at.subtract(const Duration(seconds: 3)),
       lastSeenAt: at,

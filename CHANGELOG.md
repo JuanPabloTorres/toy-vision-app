@@ -13,6 +13,8 @@ formato sigue Semantic Versioning.
   habitación limpia o de ampliar la misión como si fueran objetos confirmados.
 - Un objeto nuevo sólo reabre la misión tras permanecer detector-confirmado en
   una vista estable, evitando volver a buscar por tracks transitorios del paneo.
+- Desde su primer frame, todo objeto nuevo detector-confirmado pausa la ventana
+  limpia para impedir una finalización prematura mientras se valida su admisión.
 - El movimiento de una caja sólo cuenta como interacción física cuando la
   escena está estable; mover el teléfono ya no fabrica esa evidencia.
 

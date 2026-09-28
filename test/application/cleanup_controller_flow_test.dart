@@ -302,6 +302,87 @@ void main() {
     expect(state.activeTargetTrackId, 2);
     expect(events.whereType<NewToyDiscovered>(), hasLength(1));
   });
+
+  test('a fresh confirmed object blocks completion before admission', () async {
+    final origin = DateTime.utc(2026, 1, 4);
+    final toy = _track(1, origin, size: 0.25);
+    final missing = _missing(toy, origin.add(const Duration(seconds: 6)));
+    final fresh =
+        _track(2, origin.add(const Duration(seconds: 10)), size: 0.18).copyWith(
+      visibleFrames: 1,
+      confidence: 0.72,
+      presence: TrackPresence.candidate,
+    );
+    final results = <PerceptionResult>[
+      _result(origin, const [1, 0], active: {1: toy}),
+      _result(
+        origin.add(const Duration(seconds: 4)),
+        const [0.8, 0.6],
+        active: {1: toy},
+      ),
+      _result(
+        origin.add(const Duration(seconds: 6)),
+        const [1, 0],
+        missing: {1: missing},
+        disappearance: {1: _confirmedRemoval(missing)},
+      ),
+      for (var second = 7; second <= 9; second++)
+        _result(
+          origin.add(Duration(seconds: second)),
+          second.isEven ? const [0, 1] : const [1, 0],
+          missing: {1: missing},
+        ),
+      _result(
+        origin.add(const Duration(seconds: 10)),
+        const [0, 1],
+        active: {2: fresh},
+        missing: {1: missing},
+      ),
+    ];
+    final eventBus = DomainEventBus();
+    final events = <CleanupEvent>[];
+    final subscription = eventBus.events.listen(events.add);
+    final history = _MemoryHistory();
+    final container = ProviderContainer(
+      overrides: [
+        perceptionEngineProvider.overrideWithValue(
+          _SequencePerceptionEngine(results),
+        ),
+        progressRepositoryProvider.overrideWithValue(history),
+        domainEventBusProvider.overrideWithValue(eventBus),
+      ],
+    );
+    addTearDown(() async {
+      await subscription.cancel();
+      container.dispose();
+      await eventBus.dispose();
+    });
+    final controller = container.read(cleanupControllerProvider.notifier);
+
+    controller.start();
+    controller.markModelReady();
+    controller.beginDiscovery();
+    await controller.ingest(_frame(0, origin));
+    await controller.ingest(_frame(1, origin.add(const Duration(seconds: 4))));
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    for (var index = 2; index < results.length; index++) {
+      await controller.ingest(
+        _frame(index, origin.add(Duration(seconds: index + 4))),
+      );
+    }
+
+    final state = container.read(cleanupControllerProvider);
+    expect(state.phase, CleanupPhase.verifyingRoom);
+    expect(state.remainingEstimate, 0);
+    expect(state.completionEvidence?.candidateToyCount, 1);
+    expect(
+      state.completionEvidence?.blockingReasons,
+      contains('ambiguous_toy_candidates'),
+    );
+    expect(history.saved, isEmpty);
+    expect(events.whereType<RoomCleanConfirmed>(), isEmpty);
+    expect(events.whereType<CleanupCompleted>(), isEmpty);
+  });
 }
 
 class _SequencePerceptionEngine implements PerceptionEngine {

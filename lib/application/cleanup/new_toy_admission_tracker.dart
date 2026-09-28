@@ -25,18 +25,29 @@ class NewToyAdmissionTracker {
 
   final NewToyAdmissionPolicy policy;
   final Map<int, DateTime> _stableSince = {};
+  final Set<int> _pendingTrackIds = {};
 
-  int get pendingCount => _stableSince.length;
+  int get pendingCount => _pendingTrackIds.length;
 
   Set<int> observe(
     RoomWorldModel world, {
     required Set<int> knownTrackIds,
   }) {
-    final eligible = world.activeTracks.values.where((track) {
+    final provisional = world.activeTracks.values.where((track) {
       return !knownTrackIds.contains(track.id) &&
           track.source == ObservationSource.detector &&
-          track.confirmedToy &&
-          track.visibleFrames >= policy.minimumVisibleFrames &&
+          track.confirmedToy;
+    }).toList(growable: false);
+    // A detector-confirmed identity must block the clean-window immediately,
+    // even before it is old/confident enough to expand the mission. This
+    // closes the race where RoomClean could be emitted during its first few
+    // visible frames. It does not return the UI to cleaning by itself.
+    _pendingTrackIds
+      ..clear()
+      ..addAll(provisional.map((track) => track.id));
+
+    final eligible = provisional.where((track) {
+      return track.visibleFrames >= policy.minimumVisibleFrames &&
           track.confidence >= policy.minimumConfidence &&
           world.scene.canVerifyDisappearance;
     }).toList(growable: false);
@@ -52,9 +63,13 @@ class NewToyAdmissionTracker {
     }
     for (final trackId in admitted) {
       _stableSince.remove(trackId);
+      _pendingTrackIds.remove(trackId);
     }
     return admitted;
   }
 
-  void reset() => _stableSince.clear();
+  void reset() {
+    _stableSince.clear();
+    _pendingTrackIds.clear();
+  }
 }
